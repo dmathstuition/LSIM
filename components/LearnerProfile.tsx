@@ -46,12 +46,12 @@ export default function LearnerProfile({ data }: { data: LearnerProfileData }) {
         <Kpi icon={User} label="Days logged" value={`${attendance.total}`} />
       </section>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 14 }}>
+      <div className="lay-2">
         {/* scores */}
         <div style={card}>
           <Title>Scores</Title>
           {scores.length === 0 ? <Muted>No marks entered yet.</Muted> : (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <div className="table-wrap"><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead><tr>{["Subject", "Term", "CA1", "CA2", "Exam", "Total", "Grade", "Pos."].map((h, i) => (
                 <th key={h} style={{ textAlign: i > 1 ? "center" : "left", padding: "0 6px 8px", fontSize: 11, textTransform: "uppercase", letterSpacing: ".05em", color: C.inkFaint }}>{h}</th>
               ))}</tr></thead>
@@ -69,7 +69,7 @@ export default function LearnerProfile({ data }: { data: LearnerProfileData }) {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </div>
 
@@ -101,7 +101,7 @@ export default function LearnerProfile({ data }: { data: LearnerProfileData }) {
       </div>
 
       {/* submissions + interventions */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 14, marginTop: 14 }}>
+      <div className="lay-side" style={{ marginTop: 14 }}>
         <div style={card}>
           <Title>Submissions</Title>
           {submissions.length === 0 ? <Muted>No assignments tracked yet.</Muted> : (

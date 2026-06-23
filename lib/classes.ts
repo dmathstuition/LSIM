@@ -30,6 +30,18 @@ export async function createClass(grade_level: string, arm: string, academic_yea
   if (error) throw error;
 }
 
+/** Delete an arm. Cascades to its learners and all their scores/attendance/etc. */
+export async function deleteClass(id: string) {
+  const { error } = await supabase.from("classes").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/** Delete a learner. Cascades to their scores/attendance/submissions/interventions. */
+export async function deleteLearner(id: string) {
+  const { error } = await supabase.from("learners").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function getSubjects(): Promise<SubjectRow[]> {
   const { data, error } = await supabase.from("subjects").select("id, subject_name").order("subject_name");
   if (error) throw error;

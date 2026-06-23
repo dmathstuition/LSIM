@@ -75,7 +75,7 @@ export default function ScoreEntry({
 
   return (
     <Wrap>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
         <div>
           <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 18, fontWeight: 700 }}>Score entry</div>
           <div style={{ fontSize: 12, color: "#8B92A4", marginTop: 3 }}>
@@ -108,7 +108,7 @@ export default function ScoreEntry({
       {status === "loading" ? <Empty>Loading learners…</Empty>
         : rows.length === 0 ? <Empty>No learners in this arm yet. Add them under Classes &amp; learners.</Empty>
           : (
-            <div style={{ background: "#fff", border: "1px solid #E1E5EF", borderRadius: 14, overflow: "hidden" }}>
+            <div className="table-wrap" style={{ background: "#fff", border: "1px solid #E1E5EF", borderRadius: 14, boxShadow: "0 1px 2px rgba(19,24,43,.05)" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
                 <thead>
                   <tr style={{ background: "#F5F7FB" }}>
@@ -157,7 +157,7 @@ export default function ScoreEntry({
 }
 
 function Wrap({ children }: { children: React.ReactNode }) {
-  return <div style={{ maxWidth: 940, margin: "0 auto", padding: "22px 20px 60px", fontFamily: "system-ui, sans-serif", color: "#13182B" }}>{children}</div>;
+  return <div className="page-pad" style={{ maxWidth: 940, margin: "0 auto", fontFamily: "system-ui, sans-serif", color: "#13182B" }}>{children}</div>;
 }
 function Empty({ children }: { children: React.ReactNode }) {
   return <div style={{ background: "#fff", border: "1px dashed #D5DAE6", borderRadius: 14, padding: 32, textAlign: "center", color: "#8B92A4", fontSize: 14 }}>{children}</div>;

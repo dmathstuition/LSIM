@@ -58,12 +58,12 @@ export default function Dashboard({
   const atRiskList = [...learners].filter((l) => l.level !== "Low").sort((a, b) => (b.level === "Critical" ? 1 : 0) - (a.level === "Critical" ? 1 : 0) || a.avg - b.avg);
 
   const css = `
-    .dm-root{background:${t.bg};color:${t.ink};min-height:calc(100vh - 54px);
+    .dm-root{background:${t.bg};color:${t.ink};min-height:calc(100vh - 56px);
       font-family:system-ui,-apple-system,sans-serif;
       background-image:linear-gradient(${t.grid} 1px,transparent 1px),linear-gradient(90deg,${t.grid} 1px,transparent 1px);
       background-size:26px 26px;}
     .dm-num{font-family:ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
-    .dm-card{background:${t.surface};border:1px solid ${t.border};border-radius:14px;}
+    .dm-card{background:${t.surface};border:1px solid ${t.border};border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,${theme === "dark" ? ".25" : ".05"});}
     .dm-eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:${t.inkFaint};}
     .dm-th{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:${t.inkFaint};text-align:left;padding:0 0 10px;}
     .dm-td{padding:11px 0;font-size:14px;}
@@ -136,7 +136,7 @@ export default function Dashboard({
               <Kpi icon={AlertTriangle} label="At risk" value={k.atRisk} tone={k.atRisk > 0 ? RISK.Critical : RISK.Low} />
             </section>
 
-            <section style={{ display: "grid", gridTemplateColumns: "1.7fr 1fr", gap: 14, marginBottom: 14 }}>
+            <section className="lay-2" style={{ marginBottom: 14 }}>
               <Panel title="Performance distribution" sub="Learners per band">
                 <ResponsiveContainer width="100%" height={216}>
                   <BarChart data={dist} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}>
@@ -165,7 +165,7 @@ export default function Dashboard({
               </Panel>
             </section>
 
-            <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+            <section className="lay-even" style={{ marginBottom: 14 }}>
               <Panel title="Score trend" sub="Class average across terms">
                 {scoreTrend.length < 2 ? <NoData msg="Enter marks across more than one term to see a trend." /> : (
                   <ResponsiveContainer width="100%" height={200}>
@@ -195,10 +195,10 @@ export default function Dashboard({
               </Panel>
             </section>
 
-            <section style={{ display: "grid", gridTemplateColumns: "1.7fr 1fr", gap: 14 }}>
+            <section className="lay-2">
               <Panel title="Learners needing attention" sub={`${atRiskList.length} flagged`}>
                 {atRiskList.length === 0 ? <NoData msg="No one flagged. Nice." /> : (
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <div className="table-wrap"><table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead><tr><th className="dm-th">Learner</th><th className="dm-th" style={{ textAlign: "right" }}>Avg</th><th className="dm-th" style={{ textAlign: "right" }}>Att.</th><th className="dm-th" style={{ textAlign: "right" }}>Missing</th><th className="dm-th" style={{ textAlign: "right" }}>Risk</th></tr></thead>
                     <tbody>
                       {atRiskList.slice(0, 9).map((l) => (
@@ -211,7 +211,7 @@ export default function Dashboard({
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></div>
                 )}
               </Panel>
               <Panel title="Performers" right={

@@ -84,7 +84,7 @@ export default function Assignments({
         <Sel label="Arm" value={arm} set={setArm} opts={arms} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.6fr", gap: 14, alignItems: "start" }}>
+      <div className="lay-side">
         {/* create + list */}
         <div style={card}>
           <div style={{ display: "flex", alignItems: "center", gap: 7, fontWeight: 700, marginBottom: 12 }}>

@@ -21,18 +21,18 @@ export const BANDS = [
 ];
 export const bandColor = (t: number) => (BANDS.find((b) => t >= b.min) ?? BANDS[BANDS.length - 1]).color;
 
-export const card: React.CSSProperties = { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18 };
+export const card: React.CSSProperties = { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18, boxShadow: "0 1px 2px rgba(19,24,43,.05), 0 1px 3px rgba(19,24,43,.04)" };
 export const inp: React.CSSProperties = { padding: "9px 11px", borderRadius: 10, border: `1px solid ${C.border}`, fontSize: 13, boxSizing: "border-box", background: "#fff", color: C.ink };
 export const btn: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 14px", borderRadius: 10, border: "none", background: C.brand, color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer" };
 
 export function Wrap({ children, max = 1040 }: { children: React.ReactNode; max?: number }) {
-  return <div style={{ maxWidth: max, margin: "0 auto", padding: "22px 20px 60px", fontFamily: "system-ui, sans-serif", color: C.ink }}>{children}</div>;
+  return <div className="page-pad" style={{ maxWidth: max, margin: "0 auto", fontFamily: "system-ui, sans-serif", color: C.ink }}>{children}</div>;
 }
 export function PageHead({ title, sub, right }: { title: string; sub?: string; right?: React.ReactNode }) {
   return (
     <div className="no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
       <div>
-        <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{title}</h1>
+        <h1 className="h-page" style={{ margin: 0 }}>{title}</h1>
         {sub && <p style={{ fontSize: 13, color: C.inkFaint, margin: "3px 0 0" }}>{sub}</p>}
       </div>
       {right}

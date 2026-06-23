@@ -2,7 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
+*, *::before, *::after { box-sizing: border-box; }
 html, body { padding: 0; margin: 0; }
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+img, svg { max-width: 100%; }
+
+/* ---------- Responsive layout layer ----------
+   Inline styles can't express @media, so screens apply these classes for the
+   multi-column sections that must collapse to one column on small devices. */
+.lay-2, .lay-even, .lay-side { display: grid; gap: 14px; align-items: start; }
+.lay-2   { grid-template-columns: 1.7fr 1fr; }
+.lay-even{ grid-template-columns: 1fr 1fr; }
+.lay-side{ grid-template-columns: 1fr 1.4fr; }
+@media (max-width: 880px) { .lay-2 { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .lay-even, .lay-side { grid-template-columns: 1fr; } }
+
+/* Wide tables scroll inside their card instead of breaking the page. */
+.table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-wrap > table { min-width: 560px; }
+
+/* Fluid page padding. */
+.page-pad { padding: 22px 20px 60px; }
+@media (max-width: 600px) { .page-pad { padding: 16px 14px 48px; } }
+
+/* Polish: subtle depth + interaction feedback (impossible with inline styles). */
+.card { box-shadow: 0 1px 2px rgba(19, 24, 43, 0.05), 0 1px 3px rgba(19, 24, 43, 0.04); }
+.row-hover { transition: background .12s ease; }
+.row-hover:hover { background: #F7F8FB; }
+.btn-press { transition: transform .06s ease, filter .12s ease; }
+.btn-press:active { transform: translateY(1px); }
+.btn-press:hover { filter: brightness(1.04); }
+.icon-btn { transition: background .12s ease, color .12s ease; }
+.icon-btn:hover { background: #F1F3F8; color: #13182B; }
+.nav-link { transition: background .12s ease, color .12s ease; }
+.nav-link:hover { background: #F1F3F8; }
+
+.h-page { font-size: 20px; font-weight: 700; }
+@media (max-width: 600px) { .h-page { font-size: 18px; } }
 
 /* Show print-only blocks only when printing. */
 .print-only { display: none; }
