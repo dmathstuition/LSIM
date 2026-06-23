@@ -5,13 +5,13 @@ const ASSIGNMENTS_PER_TERM = 8;
 export type RiskLevel = "Low" | "Medium" | "High" | "Critical";
 export interface LearnerRow {
   id: string; adm: string; name: string;
-  avg: number; attendance: number; missing: number; level: RiskLevel;
+  avg: number; attendance: number; missing: number; level: RiskLevel; declining: boolean;
 }
 
 /** All of the teacher's learners (RLS-scoped), optionally one class. */
 export async function getLearners(classId?: string): Promise<LearnerRow[]> {
   let q = supabase.from("learner_risk_level")
-    .select("learner_id, fullname, class_id, avg_total, attendance_pct, missing_assignments, risk_level");
+    .select("learner_id, fullname, class_id, avg_total, attendance_pct, missing_assignments, risk_level, score_delta");
   if (classId) q = q.eq("class_id", classId);
   const { data, error } = await q;
   if (error) throw error;
@@ -26,6 +26,7 @@ export async function getLearners(classId?: string): Promise<LearnerRow[]> {
     id: r.learner_id, adm: admMap.get(r.learner_id) ?? "", name: r.fullname,
     avg: Math.round(r.avg_total ?? 0), attendance: Math.round(r.attendance_pct ?? 0),
     missing: r.missing_assignments ?? 0, level: (r.risk_level ?? "Low") as RiskLevel,
+    declining: (r.score_delta ?? 0) <= -5,
   }));
 }
 

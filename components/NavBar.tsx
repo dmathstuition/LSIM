@@ -8,7 +8,7 @@ import { getRole, isSupervisor } from "@/lib/role";
 import { useMediaQuery } from "@/lib/use-media-query";
 import {
   LayoutDashboard, ClipboardList, Users, CalendarCheck, ClipboardCheck,
-  HeartPulse, FileText, Shield, LogOut, Menu, X,
+  HeartPulse, FileText, Shield, LogOut, Menu, X, CalendarRange, Settings,
 } from "lucide-react";
 
 const LINKS = [
@@ -16,9 +16,11 @@ const LINKS = [
   { href: "/scores", label: "Scores", icon: ClipboardList },
   { href: "/attendance", label: "Attendance", icon: CalendarCheck },
   { href: "/assignments", label: "Assignments", icon: ClipboardCheck },
+  { href: "/weekly", label: "Weekly", icon: CalendarRange },
   { href: "/interventions", label: "Interventions", icon: HeartPulse },
   { href: "/reports", label: "Reports", icon: FileText },
   { href: "/classes", label: "Classes", icon: Users },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 const BRAND = "#5B43F0", INK = "#576074", ACTIVE_BG = "#ECE9FF";

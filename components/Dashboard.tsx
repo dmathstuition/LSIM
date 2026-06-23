@@ -6,8 +6,10 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
 } from "recharts";
-import { Users, TrendingUp, Percent, CalendarCheck, FileCheck, AlertTriangle, Download, Moon, Sun } from "lucide-react";
+import { Users, TrendingUp, Percent, CalendarCheck, FileCheck, AlertTriangle, Download, Moon, Sun, Clock, TrendingDown } from "lucide-react";
 import type { LearnerRow } from "@/lib/dashboard-queries";
+import type { OverdueFollowup } from "@/lib/intervention-queries";
+import { toCsv, downloadCsv } from "@/lib/csv";
 
 const THEMES = {
   light: { bg: "#EAEDF4", grid: "rgba(19,24,43,0.05)", surface: "#FFFFFF", surface2: "#F5F7FB", border: "#E1E5EF", ink: "#13182B", inkSoft: "#576074", inkFaint: "#8B92A4", brand: "#5B43F0" },
@@ -25,7 +27,7 @@ const ASSIGNMENTS_PER_TERM = 8;
 export interface Opt { id: string; label: string; }
 
 export default function Dashboard({
-  learners, classes, selectedClass, onSelectClass, scoreTrend, attTrend, teacherEmail,
+  learners, classes, selectedClass, onSelectClass, scoreTrend, attTrend, overdue = [], teacherEmail,
 }: {
   learners: LearnerRow[];
   classes: Opt[];
@@ -33,6 +35,7 @@ export default function Dashboard({
   onSelectClass: (v: string) => void;
   scoreTrend: { term: string; avg: number }[];
   attTrend: { w: string; v: number }[];
+  overdue?: OverdueFollowup[];
   teacherEmail?: string;
 }) {
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -56,6 +59,17 @@ export default function Dashboard({
   const ranked = [...learners].sort((a, b) => b.avg - a.avg);
   const perfList = perfMode === "top" ? ranked.slice(0, 8) : ranked.slice(-8).reverse();
   const atRiskList = [...learners].filter((l) => l.level !== "Low").sort((a, b) => (b.level === "Critical" ? 1 : 0) - (a.level === "Critical" ? 1 : 0) || a.avg - b.avg);
+
+  function exportCsv() {
+    const label = classes.find((c) => c.id === selectedClass)?.label ?? "all-arms";
+    const csv = toCsv(ranked, [
+      { key: "adm", header: "Admission no." }, { key: "name", header: "Name" },
+      { key: "avg", header: "Average %" }, { key: "attendance", header: "Attendance %" },
+      { key: "missing", header: "Missing work" }, { key: "level", header: "Risk" },
+      { key: "declining", header: "Declining", get: (l) => (l.declining ? "Yes" : "") },
+    ]);
+    downloadCsv(`learners-${label.replace(/\s+/g, "-").toLowerCase()}.csv`, csv);
+  }
 
   const css = `
     .dm-root{background:${t.bg};color:${t.ink};min-height:calc(100vh - 56px);
@@ -113,8 +127,8 @@ export default function Dashboard({
             <button onClick={() => setTheme(theme === "light" ? "dark" : "light")} style={{ padding: "8px 12px", borderRadius: 10, border: `1px solid ${t.border}`, background: t.surface, color: t.ink, cursor: "pointer" }}>
               {theme === "light" ? <Moon size={15} /> : <Sun size={15} />}
             </button>
-            <button onClick={() => window.print()} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, padding: "8px 13px", borderRadius: 10, border: `1px solid ${t.border}`, background: t.surface, color: t.ink, cursor: "pointer" }}>
-              <Download size={15} /> Export
+            <button onClick={exportCsv} disabled={learners.length === 0} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, padding: "8px 13px", borderRadius: 10, border: `1px solid ${t.border}`, background: t.surface, color: t.ink, cursor: learners.length === 0 ? "not-allowed" : "pointer", opacity: learners.length === 0 ? 0.5 : 1 }}>
+              <Download size={15} /> Export CSV
             </button>
           </div>
         </header>
@@ -134,6 +148,7 @@ export default function Dashboard({
               <Kpi icon={CalendarCheck} label="Attendance" value={k.att.toFixed(0)} suffix="%" />
               <Kpi icon={FileCheck} label="Submission" value={k.sub.toFixed(0)} suffix="%" />
               <Kpi icon={AlertTriangle} label="At risk" value={k.atRisk} tone={k.atRisk > 0 ? RISK.Critical : RISK.Low} />
+              <Kpi icon={Clock} label="Follow-ups due" value={overdue.length} tone={overdue.length > 0 ? RISK.Critical : RISK.Low} />
             </section>
 
             <section className="lay-2" style={{ marginBottom: 14 }}>
@@ -204,7 +219,11 @@ export default function Dashboard({
                       {atRiskList.slice(0, 9).map((l) => (
                         <tr key={l.id} style={{ borderBottom: `1px solid ${t.border}` }}>
                           <td className="dm-td"><Link href={`/learners/${l.id}`} style={{ fontWeight: 600, color: t.ink, textDecoration: "none" }}>{l.name}</Link>{l.adm && <div className="dm-num" style={{ fontSize: 11, color: t.inkFaint }}>{l.adm}</div>}</td>
-                          <td className="dm-td dm-num" style={{ textAlign: "right", fontWeight: 600, color: bandOf(l.avg).color }}>{l.avg}</td>
+                          <td className="dm-td dm-num" style={{ textAlign: "right", fontWeight: 600, color: bandOf(l.avg).color }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 3, justifyContent: "flex-end" }}>
+                              {l.declining && <TrendingDown size={13} color={RISK.Critical} aria-label="declining" />}{l.avg}
+                            </span>
+                          </td>
                           <td className="dm-td dm-num" style={{ textAlign: "right" }}>{l.attendance}%</td>
                           <td className="dm-td dm-num" style={{ textAlign: "right" }}>{l.missing}</td>
                           <td className="dm-td" style={{ textAlign: "right" }}><span className="dm-chip" style={{ background: RISK[l.level] + "22", color: RISK[l.level] }}>{l.level}</span></td>
@@ -230,6 +249,27 @@ export default function Dashboard({
                 ))}
               </Panel>
             </section>
+
+            {overdue.length > 0 && (
+              <section style={{ marginTop: 14 }}>
+                <Panel title="Follow-ups due" sub={`${overdue.length} intervention${overdue.length === 1 ? "" : "s"} past their follow-up date`}
+                  right={<Link href="/interventions" style={{ fontSize: 12, fontWeight: 600, color: t.brand, textDecoration: "none" }}>Open board →</Link>}>
+                  <div className="table-wrap"><table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead><tr><th className="dm-th">Learner</th><th className="dm-th">Issue</th><th className="dm-th">Status</th><th className="dm-th" style={{ textAlign: "right" }}>Due</th></tr></thead>
+                    <tbody>
+                      {overdue.slice(0, 10).map((o) => (
+                        <tr key={o.id} style={{ borderBottom: `1px solid ${t.border}` }}>
+                          <td className="dm-td"><Link href={`/learners/${o.learner_id}`} style={{ fontWeight: 600, color: t.ink, textDecoration: "none" }}>{o.learner_name}</Link></td>
+                          <td className="dm-td" style={{ color: t.inkSoft }}>{o.issue}</td>
+                          <td className="dm-td" style={{ color: t.inkSoft }}>{o.status}</td>
+                          <td className="dm-td dm-num" style={{ textAlign: "right", color: RISK.Critical }}>{o.follow_up_date}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table></div>
+                </Panel>
+              </section>
+            )}
           </>
         )}
       </div>

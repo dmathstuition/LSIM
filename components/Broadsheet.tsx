@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { Printer } from "lucide-react";
+import { Printer, Download } from "lucide-react";
 import { C, Wrap, PageHead, Empty, Sel, bandColor, type Opt } from "@/components/ui";
 import type { BroadsheetData } from "@/lib/report-queries";
+import { toCsv, downloadCsv } from "@/lib/csv";
 
 const TERMS: Opt[] = [{ id: "Term 1", label: "Term 1" }, { id: "Term 2", label: "Term 2" }, { id: "Term 3", label: "Term 3" }];
 const SESSIONS: Opt[] = [{ id: "2024/2025", label: "2024/2025" }, { id: "2025/2026", label: "2025/2026" }];
@@ -28,6 +29,16 @@ export default function Broadsheet({
 
   const armLabel = arms.find((a) => a.id === arm)?.label ?? "";
 
+  function exportCsv() {
+    if (!data || data.rows.length === 0) return;
+    const csv = toCsv(data.rows, [
+      { key: "adm", header: "Admission no." }, { key: "name", header: "Name" },
+      ...data.subjects.map((s) => ({ key: s.id, header: s.name, get: (r: typeof data.rows[number]) => (r.marks[s.id] ? `${r.marks[s.id].total} (${r.marks[s.id].grade})` : "") })),
+      { key: "avg", header: "Average" },
+    ]);
+    downloadCsv(`broadsheet-${armLabel.replace(/\s+/g, "-").toLowerCase()}-${term.replace(/\s+/g, "")}-${session.replace("/", "-")}.csv`, csv);
+  }
+
   if (arms.length === 0) {
     return <Wrap><Empty>No arms yet. <Link href="/classes" style={{ color: C.brand, fontWeight: 600 }}>Create a class</Link> first.</Empty></Wrap>;
   }
@@ -36,9 +47,14 @@ export default function Broadsheet({
     <Wrap max={1100}>
       <PageHead title="Class broadsheet" sub="Every learner × subject for one arm, term and session. Print to PDF for records."
         right={
-          <button onClick={() => window.print()} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, padding: "9px 14px", borderRadius: 10, border: `1px solid ${C.border}`, background: "#fff", color: C.ink, cursor: "pointer" }}>
-            <Printer size={15} /> Print
-          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={exportCsv} disabled={!data || data.rows.length === 0} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, padding: "9px 14px", borderRadius: 10, border: `1px solid ${C.border}`, background: "#fff", color: C.ink, cursor: "pointer", opacity: !data || data.rows.length === 0 ? 0.5 : 1 }}>
+              <Download size={15} /> CSV
+            </button>
+            <button onClick={() => window.print()} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, padding: "9px 14px", borderRadius: 10, border: `1px solid ${C.border}`, background: "#fff", color: C.ink, cursor: "pointer" }}>
+              <Printer size={15} /> Print
+            </button>
+          </div>
         } />
 
       <div className="no-print" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
