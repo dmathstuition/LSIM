@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { UserPlus, FolderPlus, Upload } from "lucide-react";
+import { UserPlus, FolderPlus, Upload, Trash2 } from "lucide-react";
 import {
   ensureProfile, getClasses, createClass, getLearnersBasic, bulkAddLearners,
-  type ClassRow, type LearnerBasic,
+  deleteClass, deleteLearner, type ClassRow, type LearnerBasic,
 } from "@/lib/classes";
 
 const GRADES = ["Year 7", "Year 8", "Year 9", "Year 10", "Year 11", "Year 12"];
@@ -53,6 +53,19 @@ export default function ClassesPage() {
       setLearners(await getLearnersBasic(sel)); }
     catch (e: any) { setMsg(e.message); }
   }
+  async function removeArm(c: ClassRow) {
+    if (!confirm(`Delete ${c.grade_level} ${c.arm}? This also removes its learners and all their scores, attendance and interventions. This cannot be undone.`)) return;
+    try {
+      await deleteClass(c.id);
+      if (sel === c.id) { setSel(""); setLearners([]); }
+      setMsg(`Deleted ${c.grade_level} ${c.arm}.`); refresh();
+    } catch (e: any) { setMsg(e.message); }
+  }
+  async function removeLearner(l: LearnerBasic) {
+    if (!confirm(`Delete ${l.fullname}? This also removes their scores, attendance, submissions and interventions. This cannot be undone.`)) return;
+    try { await deleteLearner(l.id); setMsg(`Deleted ${l.fullname}.`); setLearners(await getLearnersBasic(sel)); }
+    catch (e: any) { setMsg(e.message); }
+  }
 
   return (
     <div style={{ maxWidth: 960, margin: "0 auto", padding: "22px 20px 60px", fontFamily: "system-ui, sans-serif", color: "#13182B" }}>
@@ -80,11 +93,18 @@ export default function ClassesPage() {
           <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
             {classes.length === 0 && <span style={{ fontSize: 13, color: "#8B92A4" }}>None yet.</span>}
             {classes.map((c) => (
-              <button key={c.id} onClick={() => setSel(c.id)} style={{ padding: "6px 11px", borderRadius: 8,
-                fontSize: 13, fontWeight: 600, cursor: "pointer", border: "1px solid #E1E5EF",
-                background: sel === c.id ? "#ECE9FF" : "#fff", color: sel === c.id ? "#5B43F0" : "#576074" }}>
-                {c.grade_level} {c.arm}
-              </button>
+              <span key={c.id} style={{ display: "inline-flex", alignItems: "center", borderRadius: 8, border: "1px solid #E1E5EF",
+                background: sel === c.id ? "#ECE9FF" : "#fff", overflow: "hidden" }}>
+                <button onClick={() => setSel(c.id)} style={{ padding: "6px 6px 6px 11px", fontSize: 13, fontWeight: 600,
+                  cursor: "pointer", border: "none", background: "transparent", color: sel === c.id ? "#5B43F0" : "#576074" }}>
+                  {c.grade_level} {c.arm}
+                </button>
+                <button onClick={() => removeArm(c)} title="Delete arm" aria-label={`Delete ${c.grade_level} ${c.arm}`}
+                  style={{ display: "inline-flex", alignItems: "center", padding: "6px 8px", border: "none",
+                    borderLeft: "1px solid #E1E5EF", background: "transparent", color: "#8B92A4", cursor: "pointer" }}>
+                  <Trash2 size={13} />
+                </button>
+              </span>
             ))}
           </div>
         </div>
@@ -120,10 +140,15 @@ export default function ClassesPage() {
                 </div>
                 <div style={{ border: "1px solid #EEF1F6", borderRadius: 10, maxHeight: 240, overflow: "auto" }}>
                   {learners.map((l, i) => (
-                    <div key={l.id} style={{ display: "flex", gap: 10, padding: "8px 12px",
+                    <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
                       borderBottom: i < learners.length - 1 ? "1px solid #F2F4F8" : "none", fontSize: 13 }}>
                       <span style={{ fontFamily: "ui-monospace, monospace", color: "#8B92A4", width: 110 }}>{l.admission_number}</span>
-                      <span style={{ fontWeight: 600 }}>{l.fullname}</span>
+                      <span style={{ fontWeight: 600, flex: 1 }}>{l.fullname}</span>
+                      <button onClick={() => removeLearner(l)} title="Delete learner" aria-label={`Delete ${l.fullname}`}
+                        style={{ display: "inline-flex", alignItems: "center", padding: 5, border: "none", borderRadius: 7,
+                          background: "transparent", color: "#8B92A4", cursor: "pointer" }}>
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   ))}
                 </div>
