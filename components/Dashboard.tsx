@@ -203,7 +203,7 @@ export default function Dashboard({
                     <tbody>
                       {atRiskList.slice(0, 9).map((l) => (
                         <tr key={l.id} style={{ borderBottom: `1px solid ${t.border}` }}>
-                          <td className="dm-td"><div style={{ fontWeight: 600 }}>{l.name}</div>{l.adm && <div className="dm-num" style={{ fontSize: 11, color: t.inkFaint }}>{l.adm}</div>}</td>
+                          <td className="dm-td"><Link href={`/learners/${l.id}`} style={{ fontWeight: 600, color: t.ink, textDecoration: "none" }}>{l.name}</Link>{l.adm && <div className="dm-num" style={{ fontSize: 11, color: t.inkFaint }}>{l.adm}</div>}</td>
                           <td className="dm-td dm-num" style={{ textAlign: "right", fontWeight: 600, color: bandOf(l.avg).color }}>{l.avg}</td>
                           <td className="dm-td dm-num" style={{ textAlign: "right" }}>{l.attendance}%</td>
                           <td className="dm-td dm-num" style={{ textAlign: "right" }}>{l.missing}</td>
@@ -224,7 +224,7 @@ export default function Dashboard({
                 {perfList.map((l, i) => (
                   <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 11, padding: "9px 0", borderBottom: `1px solid ${t.border}` }}>
                     <span className="dm-num" style={{ width: 20, color: t.inkFaint, fontSize: 13 }}>{perfMode === "top" ? i + 1 : ranked.length - i}</span>
-                    <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{l.name}</span>
+                    <Link href={`/learners/${l.id}`} style={{ flex: 1, fontSize: 13, fontWeight: 600, color: t.ink, textDecoration: "none" }}>{l.name}</Link>
                     <span className="dm-num" style={{ fontWeight: 700, color: bandOf(l.avg).color }}>{l.avg}</span>
                   </div>
                 ))}
