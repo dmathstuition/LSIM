@@ -23,11 +23,11 @@ export default function Oversight({ data }: { data: OversightSummary }) {
         <Kpi icon={HeartPulse} label="Open interventions" value={totals.openInterventions} color={C.brand} />
       </section>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.7fr 1fr", gap: 14 }}>
+      <div className="lay-2">
         <div style={card}>
           <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>By arm</div>
           {rows.length === 0 ? <Empty>No classes found across teachers yet.</Empty> : (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <div className="table-wrap"><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead><tr>{["Arm", "Teacher", "Learners", "Avg", "At risk", "Open"].map((h, i) => (
                 <th key={h} style={{ textAlign: i > 1 ? "right" : "left", padding: "0 8px 8px", fontSize: 11, textTransform: "uppercase", letterSpacing: ".05em", color: C.inkFaint }}>{h}</th>
               ))}</tr></thead>
@@ -43,7 +43,7 @@ export default function Oversight({ data }: { data: OversightSummary }) {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </div>
 

@@ -55,7 +55,7 @@ export default function Broadsheet({
       {!data || data.rows.length === 0 ? <Empty>No learners in this arm.</Empty>
         : data.subjects.length === 0 ? <Empty>No marks entered for {term} {session} yet.</Empty>
           : (
-            <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 14, overflow: "auto" }}>
+            <div className="table-wrap" style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 14 }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: C.surface2 }}>

@@ -73,7 +73,7 @@ export default function Interventions({
       </div>
       {msg && <div style={{ fontSize: 13, color: C.brand, marginBottom: 12 }}>{msg}</div>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "0.9fr 1.6fr", gap: 14, alignItems: "start" }}>
+      <div className="lay-side">
         {/* suggested / at-risk */}
         <div style={card}>
           <div style={{ display: "flex", alignItems: "center", gap: 7, fontWeight: 700, marginBottom: 4 }}>

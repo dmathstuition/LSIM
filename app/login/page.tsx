@@ -22,9 +22,9 @@ export default function LoginPage() {
 
   return (
     <div style={{ minHeight: "100vh", display: "grid", placeItems: "center",
-      background: "#EAEDF4", fontFamily: "system-ui, sans-serif" }}>
-      <div style={{ width: 340, background: "#fff", border: "1px solid #E1E5EF",
-        borderRadius: 14, padding: 26 }}>
+      background: "#EAEDF4", fontFamily: "system-ui, sans-serif", padding: 16 }}>
+      <div style={{ width: "min(360px, 100%)", background: "#fff", border: "1px solid #E1E5EF",
+        borderRadius: 14, padding: "clamp(20px, 5vw, 28px)", boxShadow: "0 4px 24px rgba(19,24,43,.08)" }}>
         <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 22, fontWeight: 700, marginBottom: 4 }}>
           d<span style={{ color: "#5B43F0" }}>maths</span>
         </div>
