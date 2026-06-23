@@ -1,0 +1,58 @@
+"use client";
+
+// Shared inline-style primitives for the LAIMS screens. Mirrors the palette and
+// card/inp/btn conventions already used in app/classes/page.tsx and ScoreEntry.tsx
+// so every new screen matches the existing look without re-declaring constants.
+
+import React from "react";
+
+export const C = {
+  brand: "#5B43F0", brandSoft: "#ECE9FF",
+  ink: "#13182B", inkSoft: "#576074", inkFaint: "#8B92A4",
+  bg: "#EAEDF4", surface: "#fff", surface2: "#F5F7FB", border: "#E1E5EF",
+  good: "#1FA97A", warn: "#C9A227", bad: "#D2353A",
+};
+
+export const RISK: Record<string, string> = { Low: "#1FA97A", Medium: "#C9A227", High: "#E0701E", Critical: "#D2353A" };
+export const BANDS = [
+  { name: "Outstanding", min: 80, color: "#1FA97A" }, { name: "Very Good", min: 70, color: "#5BB04A" },
+  { name: "Good", min: 60, color: "#C9A227" }, { name: "Fair", min: 50, color: "#E08A1E" },
+  { name: "Needs Improv.", min: 40, color: "#DB6334" }, { name: "At Risk", min: 0, color: "#D2353A" },
+];
+export const bandColor = (t: number) => (BANDS.find((b) => t >= b.min) ?? BANDS[BANDS.length - 1]).color;
+
+export const card: React.CSSProperties = { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18 };
+export const inp: React.CSSProperties = { padding: "9px 11px", borderRadius: 10, border: `1px solid ${C.border}`, fontSize: 13, boxSizing: "border-box", background: "#fff", color: C.ink };
+export const btn: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 14px", borderRadius: 10, border: "none", background: C.brand, color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer" };
+
+export function Wrap({ children, max = 1040 }: { children: React.ReactNode; max?: number }) {
+  return <div style={{ maxWidth: max, margin: "0 auto", padding: "22px 20px 60px", fontFamily: "system-ui, sans-serif", color: C.ink }}>{children}</div>;
+}
+export function PageHead({ title, sub, right }: { title: string; sub?: string; right?: React.ReactNode }) {
+  return (
+    <div className="no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+      <div>
+        <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{title}</h1>
+        {sub && <p style={{ fontSize: 13, color: C.inkFaint, margin: "3px 0 0" }}>{sub}</p>}
+      </div>
+      {right}
+    </div>
+  );
+}
+export function Empty({ children }: { children: React.ReactNode }) {
+  return <div style={{ background: "#fff", border: `1px dashed #D5DAE6`, borderRadius: 14, padding: 32, textAlign: "center", color: C.inkFaint, fontSize: 14 }}>{children}</div>;
+}
+export function Sel({ label, value, set, opts }: { label: string; value: string; set: (v: string) => void; opts: { id: string; label: string }[] }) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: ".05em", textTransform: "uppercase", color: C.inkFaint }}>{label}</span>
+      <select value={value} onChange={(e) => set(e.target.value)} style={{ padding: "9px 11px", borderRadius: 10, border: `1px solid ${C.border}`, fontSize: 13, fontWeight: 600, background: "#fff", cursor: "pointer", color: C.ink }}>
+        {opts.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+      </select>
+    </label>
+  );
+}
+export function Chip({ label, color }: { label: string; color: string }) {
+  return <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 999, background: color + "22", color }}>{label}</span>;
+}
+export interface Opt { id: string; label: string; }

@@ -1,16 +1,18 @@
-# dmaths — Learner Tracking Web App
+# dmaths — Learner Accountability & Intervention Management System (LAIMS)
 
 Next.js 15 (App Router) + TypeScript + Tailwind + Recharts, on Supabase
-(Postgres, Auth, RLS). This is the runnable skeleton: auth, a protected
-dashboard, and the data layer wired to the v1 schema.
+(Postgres, Auth, RLS). A full LAIMS: auth, a protected dashboard, and screens
+to capture and manage every accountability signal — scores, attendance,
+assignments, interventions — plus printable reports and a supervisor role.
 
 ## 1. Supabase
 1. Create a project at supabase.com.
-2. SQL Editor → paste `supabase/schema.sql` → Run.
+2. SQL Editor → run, in order: `supabase/schema.sql`, `migration_arms.sql`,
+   `migration_setup.sql`, then `migration_laims.sql` (adds the supervisor role).
 3. Storage → create a **private** bucket named `evidence`, then uncomment
    the two storage policies at the bottom of the schema and run them.
 4. Authentication → add yourself a user (email + password), or enable signups.
-5. After your first login, insert your `profiles` row (id = your auth user id).
+5. The `migration_setup.sql` trigger creates your `profiles` row automatically.
 
 ## 2. App
 ```bash
@@ -33,15 +35,35 @@ duplicated in the front end.
 Push to GitHub → import in Vercel → add the same two env vars → deploy.
 Supabase needs no separate hosting.
 
-## What's NOT in this skeleton (by design)
-- Score-entry / attendance / assignment forms (the screens that create data)
-- PDF report generation
-- Supervisor / admin roles (you occupy all roles for now)
+## Screens
+| Route | What it does |
+|-------|--------------|
+| `/dashboard` | KPIs, performance & risk charts, at-risk list (names link to profiles). |
+| `/scores` | Bulk score-entry grid — live totals, mark-cap validation, one upsert save. |
+| `/attendance` | Daily per-arm register (Present / Late / Absent), one upsert per date. |
+| `/assignments` | Create assignments per arm and mark each learner's submission status. |
+| `/interventions` | **Core LAIMS:** early-warning feed → log issue + strategy → track status, follow-up and outcome on a board. |
+| `/learners/[id]` | 360° learner profile + printable report card (scores, attendance, submissions, interventions). |
+| `/reports` | Printable class broadsheet (every learner × subject, per term/session). |
+| `/oversight` | Supervisor/admin only — cross-teacher rollup of learners, averages, risk and open interventions. |
+| `/classes` | Create arms and add learners (single or CSV import). |
 
-Build those next against the same schema and RLS spine.
+Attendance and assignment data feed the dashboard's attendance %, submission %
+and early-warning risk score — all derived in SQL views, never duplicated in the
+front end.
 
-## Update — arms + score entry
-- Run `supabase/migration_arms.sql` after the base schema (adds grade_level + arm).
-- `/scores` is the bulk score-entry grid — one editable row per learner, live
-  totals, validation against the mark caps, and a single upsert save.
-- Wire it live by uncommenting the imports in `app/scores/page.tsx`.
+## Roles
+The single-teacher RLS spine is unchanged: a teacher owns their classes →
+learners → scores/attendance/submissions/interventions. `migration_laims.sql`
+adds **read-only** "supervisor read" policies so users with
+`role in ('supervisor','admin')` can see across all teachers and use `/oversight`.
+Promote a user after they sign up:
+```sql
+update profiles set role = 'supervisor' where email = 'head@school.org';
+```
+
+## Reporting
+Reports are browser **Print-to-PDF** views (no extra dependencies). A
+`@media print` block in `app/globals.css` hides nav/controls (`.no-print`) and
+reveals print-only headers (`.print-only`). Use the **Print** buttons on
+`/learners/[id]` and `/reports`.

@@ -1,9 +1,9 @@
 -- migration_arms.sql
 -- A teacher teaches a subject across several ARMS of one or more grade levels.
--- A "class" row now = one arm the teacher teaches (e.g. JSS 2 / A).
+-- A "class" row now = one arm the teacher teaches (e.g. Year 7 / A).
 -- Term/session live on the assessment (scores), never on the class.
 
-alter table classes add column if not exists grade_level text;  -- 'JSS 2', 'SS 1'
+alter table classes add column if not exists grade_level text;  -- 'Year 7', 'Year 12'
 alter table classes add column if not exists arm         text;  -- 'A', 'B', 'Gold'
 
 -- term described the class before; it belongs on scores, so drop it here.

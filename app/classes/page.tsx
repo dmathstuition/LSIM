@@ -7,6 +7,7 @@ import {
   type ClassRow, type LearnerBasic,
 } from "@/lib/classes";
 
+const GRADES = ["Year 7", "Year 8", "Year 9", "Year 10", "Year 11", "Year 12"];
 const card: React.CSSProperties = { background: "#fff", border: "1px solid #E1E5EF", borderRadius: 14, padding: 18 };
 const inp: React.CSSProperties = { padding: "9px 11px", borderRadius: 10, border: "1px solid #E1E5EF", fontSize: 13, boxSizing: "border-box" };
 const btn: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 14px", borderRadius: 10, border: "none", background: "#5B43F0", color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer" };
@@ -15,7 +16,7 @@ export default function ClassesPage() {
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [sel, setSel] = useState<string>("");
   const [learners, setLearners] = useState<LearnerBasic[]>([]);
-  const [grade, setGrade] = useState("JSS 2");
+  const [grade, setGrade] = useState(GRADES[0]);
   const [arm, setArm] = useState("A");
   const [year, setYear] = useState("2024/2025");
   const [adm, setAdm] = useState("");
@@ -68,7 +69,9 @@ export default function ClassesPage() {
             <FolderPlus size={17} color="#5B43F0" /> New arm
           </div>
           <div style={{ display: "grid", gap: 9 }}>
-            <input style={inp} placeholder="Grade (e.g. JSS 2)" value={grade} onChange={(e) => setGrade(e.target.value)} />
+            <select style={{ ...inp, fontWeight: 600, cursor: "pointer", background: "#fff" }} value={grade} onChange={(e) => setGrade(e.target.value)}>
+              {GRADES.map((g) => <option key={g} value={g}>{g}</option>)}
+            </select>
             <input style={inp} placeholder="Arm (e.g. A)" value={arm} onChange={(e) => setArm(e.target.value)} />
             <input style={inp} placeholder="Session (e.g. 2024/2025)" value={year} onChange={(e) => setYear(e.target.value)} />
             <button style={btn} onClick={addArm}><FolderPlus size={15} /> Create arm</button>
