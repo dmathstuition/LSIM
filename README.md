@@ -8,9 +8,11 @@ assignments, interventions — plus printable reports and a supervisor role.
 ## 1. Supabase
 1. Create a project at supabase.com.
 2. SQL Editor → run, in order: `supabase/schema.sql`, `migration_arms.sql`,
-   `migration_setup.sql`, then `migration_laims.sql` (adds the supervisor role).
-3. Storage → create a **private** bucket named `evidence`, then uncomment
-   the two storage policies at the bottom of the schema and run them.
+   `migration_setup.sql`, `migration_laims.sql` (supervisor role), then
+   `migration_trend.sql` (adds the declining-trend early-warning signal).
+3. Storage → create a **private** bucket named `evidence`, then run
+   `migration_evidence_storage.sql` (own-files read/write/delete policies for
+   the Weekly tracker uploads).
 4. Authentication → add yourself a user (email + password), or enable signups.
 5. The `migration_setup.sql` trigger creates your `profiles` row automatically.
 
@@ -42,15 +44,38 @@ Supabase needs no separate hosting.
 | `/scores` | Bulk score-entry grid — live totals, mark-cap validation, one upsert save. |
 | `/attendance` | Daily per-arm register (Present / Late / Absent), one upsert per date. |
 | `/assignments` | Create assignments per arm and mark each learner's submission status. |
+| `/weekly` | Weekly accountability tracker — log topic/objectives/activity/homework/participation/reflection and upload evidence files. |
 | `/interventions` | **Core LAIMS:** early-warning feed → log issue + strategy → track status, follow-up and outcome on a board. |
 | `/learners/[id]` | 360° learner profile + printable report card (scores, attendance, submissions, interventions). |
-| `/reports` | Printable class broadsheet (every learner × subject, per term/session). |
+| `/reports` | Class broadsheet (every learner × subject, per term/session) — print or export CSV. |
 | `/oversight` | Supervisor/admin only — cross-teacher rollup of learners, averages, risk and open interventions. |
-| `/classes` | Create arms and add learners (single or CSV import). |
+| `/classes` | Create arms and add learners (single or CSV import); delete arms/learners. |
+| `/settings` | Edit your name/department and change password. |
 
 Attendance and assignment data feed the dashboard's attendance %, submission %
 and early-warning risk score — all derived in SQL views, never duplicated in the
 front end.
+
+## Early-warning signals
+The `learner_risk` view (see `migration_trend.sql`) scores four signals: low
+average, low attendance, missing assignments, and a **term-over-term decline**
+(latest term average vs the previous term). Declining learners show a ▼ on the
+dashboard. Interventions whose `follow_up_date` has passed surface as a
+**"Follow-ups due"** KPI + panel so the loop doesn't lapse.
+
+## Evidence files
+Weekly evidence uploads go to the private `evidence` Storage bucket under
+`<your-uid>/<weekly_tracker_id>/<file>`; the storage policy in
+`migration_evidence_storage.sql` locks each file to the teacher who uploaded it.
+Files are read back through short-lived signed URLs.
+
+## Exports & data
+The dashboard **Export CSV** button downloads the current learner roster, and the
+broadsheet offers **CSV** alongside Print (browser Print-to-PDF). Account
+self-service lives at `/settings` (name, department, change password); the login
+page has a **Forgot password?** link that emails a reset (the in-app change at
+`/settings` is the primary path — the email recovery-token exchange flow is not
+implemented).
 
 ## Roles
 The single-teacher RLS spine is unchanged: a teacher owns their classes →

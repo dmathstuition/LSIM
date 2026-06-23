@@ -70,6 +70,35 @@ export async function updateIntervention(
   if (error) throw error;
 }
 
+export interface OverdueFollowup {
+  id: string;
+  learner_id: string;
+  learner_name: string;
+  class_id: string;
+  issue: string;
+  follow_up_date: string;
+  status: ProgressStatus;
+}
+
+/** Interventions whose follow-up date has passed and are not yet resolved. */
+export async function getOverdueFollowups(classId?: string): Promise<OverdueFollowup[]> {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data, error } = await supabase
+    .from("interventions")
+    .select("id, learner_id, issue, follow_up_date, status, learners!inner(fullname, class_id)")
+    .lt("follow_up_date", today)
+    .neq("status", "Improved")
+    .order("follow_up_date");
+  if (error) throw error;
+  return (data ?? [])
+    .map((r: any) => ({
+      id: r.id, learner_id: r.learner_id, learner_name: r.learners?.fullname ?? "",
+      class_id: r.learners?.class_id ?? "", issue: r.issue,
+      follow_up_date: r.follow_up_date, status: r.status as ProgressStatus,
+    }))
+    .filter((r: OverdueFollowup) => !classId || r.class_id === classId);
+}
+
 /** Early-warning feed for the "who needs an intervention" panel. */
 export async function getRiskList(classId?: string): Promise<RiskItem[]> {
   let q = supabase.from("learner_risk_level")
