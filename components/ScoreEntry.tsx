@@ -2,8 +2,10 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Save, Check, AlertCircle, Cloud, CloudOff, Loader2 } from "lucide-react";
+import { Save, Check, AlertCircle, Cloud, CloudOff, Loader2, Upload, FileDown } from "lucide-react";
 import { draftKey, loadDraft, saveDraft, clearDraft, loadSelection, saveSelection } from "@/lib/draft";
+import { parseCsv, toCsv, downloadCsv } from "@/lib/csv";
+import { applyCsvScores } from "@/lib/score-import";
 
 const CAP = { first_ca: 20, second_ca: 20, exam: 60 };
 const TOTAL_MAX = CAP.first_ca + CAP.second_ca + CAP.exam;
@@ -19,6 +21,11 @@ const DEFAULT_SESSION = "2025/2026";
 
 export interface Row { learner_id: string; adm: string; name: string; first_ca: number; second_ca: number; exam: number; }
 export interface Opt { id: string; label: string; }
+
+const ghostBtn: React.CSSProperties = {
+  display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 13px", borderRadius: 10,
+  border: "1px solid var(--border)", background: "var(--surface)", color: "var(--ink)", fontWeight: 600, fontSize: 13,
+};
 
 export default function ScoreEntry({
   arms, subjects, loadRows, onSave,
@@ -38,6 +45,8 @@ export default function ScoreEntry({
   const [dirty, setDirty] = useState(false);       // edits not yet persisted to the DB
   const [savedAt, setSavedAt] = useState("");       // time of last successful save
   const [restored, setRestored] = useState(false);  // a local draft was restored
+  const [importMsg, setImportMsg] = useState("");    // CSV-import summary banner
+  const fileRef = useRef<HTMLInputElement | null>(null);
 
   // Last-used selection (from localStorage), applied once the option lists load
   // so a refresh returns to the same Arm/Subject/Term/Session instead of resetting.
@@ -64,6 +73,8 @@ export default function ScoreEntry({
   const invalid = useMemo(() => rows.some((r) =>
     overCap(r.first_ca, "first_ca") || overCap(r.second_ca, "second_ca") || overCap(r.exam, "exam")), [rows]);
   const classAvg = totals.length ? totals.reduce((a, b) => a + b, 0) / totals.length : 0;
+  const armLabel = arms.find((a) => a.id === arm)?.label ?? "—";
+  const subjectLabel = subjects.find((s) => s.id === subject)?.label ?? "—";
 
   const dKey = useMemo(() => (arm && subject ? draftKey({ arm, subject, term, session }) : ""), [arm, subject, term, session]);
   const toDraft = (rs: Row[]) => rs.map((r) => ({ learner_id: r.learner_id, first_ca: r.first_ca, second_ca: r.second_ca, exam: r.exam }));
@@ -115,19 +126,22 @@ export default function ScoreEntry({
   }
   function saveNow() { if (timer.current) clearTimeout(timer.current); void flush(); }
 
+  // Shared write path for manual edits and CSV import: update the grid, mirror to
+  // the device draft, mark dirty and (re)arm the debounced autosave.
+  const applyRows = (next: Row[]) => {
+    setRows(next);
+    if (dKey) saveDraft(dKey, toDraft(next));
+    setDirty(true); setStatus("idle");
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => { void flush(); }, 1000);
+  };
+
   const set = (i: number, f: keyof typeof CAP, raw: string) => {
     const n = Number(raw);
     // Treat blank / non-numeric input (e.g. "1e", a bad paste) as 0 so a NaN can
     // never reach the grid — NaN slips past the cap check and crashes bandColor.
     const v = raw === "" || !Number.isFinite(n) ? 0 : n;
-    setRows((prev) => {
-      const next = prev.map((row, j) => (j === i ? { ...row, [f]: v } : row));
-      if (dKey) saveDraft(dKey, toDraft(next));   // mirror to device immediately
-      return next;
-    });
-    setDirty(true); setStatus("idle");
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => { void flush(); }, 1000);   // debounced autosave
+    applyRows(rows.map((row, j) => (j === i ? { ...row, [f]: v } : row)));
   };
 
   function discardDraft() {
@@ -136,6 +150,38 @@ export default function ScoreEntry({
     loadRows(arm, subject, term, session)
       .then((r) => { setRows(r); setStatus("idle"); })
       .catch((e) => { setStatus("error"); setMsg(e.message); });
+  }
+
+  // Download the current roster as a Name,CA1,CA2,Exam template / backup.
+  function exportCsv() {
+    const where = `${armLabel}-${subjectLabel}-${term}`.replace(/\s+/g, "-").toLowerCase();
+    downloadCsv(`scores-${where}.csv`, toCsv(rows, [
+      { key: "name", header: "Name" },
+      { key: "first_ca", header: "CA1" },
+      { key: "second_ca", header: "CA2" },
+      { key: "exam", header: "Exam" },
+    ]));
+  }
+
+  async function onImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";   // allow re-importing the same file
+    if (!file || rows.length === 0) return;
+    try {
+      const res = applyCsvScores(parseCsv(await file.text()), rows, CAP);
+      if (res.matched === 0 && res.unmatched.length === 0) {
+        setImportMsg("Couldn't read that file. Expected a header row with Name, CA1, CA2 and Exam columns.");
+        return;
+      }
+      applyRows(res.rows);
+      const parts = [`Imported marks for ${res.matched} of ${rows.length} learners into ${armLabel} · ${subjectLabel} · ${term}.`];
+      if (res.unmatched.length) parts.push(`${res.unmatched.length} not matched: ${res.unmatched.slice(0, 6).join(", ")}${res.unmatched.length > 6 ? "…" : ""}.`);
+      if (res.missing.length) parts.push(`${res.missing.length} learner${res.missing.length === 1 ? "" : "s"} not in the file (left unchanged).`);
+      if (res.overCap) parts.push(`${res.overCap} mark${res.overCap === 1 ? "" : "s"} exceed the maximum — shown in red, fix before they can save.`);
+      setImportMsg(parts.join(" "));
+    } catch (err: any) {
+      setImportMsg(`Import failed: ${err.message}`);
+    }
   }
 
   // Warn on refresh/close while there are unsaved edits or a save is in flight.
@@ -166,8 +212,17 @@ export default function ScoreEntry({
             CA1 /{CAP.first_ca} · CA2 /{CAP.second_ca} · Exam /{CAP.exam} · Total /{TOTAL_MAX}
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <SyncStatus status={status} dirty={dirty} invalid={invalid} savedAt={savedAt} />
+          <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={onImportFile} style={{ display: "none" }} />
+          <button onClick={exportCsv} disabled={rows.length === 0} title="Download this roster as a CSV template"
+            style={{ ...ghostBtn, opacity: rows.length === 0 ? 0.5 : 1, cursor: rows.length === 0 ? "not-allowed" : "pointer" }}>
+            <FileDown size={15} /> Export
+          </button>
+          <button onClick={() => fileRef.current?.click()} disabled={rows.length === 0} title="Import marks from a CSV (Name, CA1, CA2, Exam)"
+            style={{ ...ghostBtn, opacity: rows.length === 0 ? 0.5 : 1, cursor: rows.length === 0 ? "not-allowed" : "pointer" }}>
+            <Upload size={15} /> Import CSV
+          </button>
           <button onClick={saveNow} disabled={invalid || status === "saving" || rows.length === 0}
             style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 10,
               border: "none", fontWeight: 600, fontSize: 14, cursor: invalid ? "not-allowed" : "pointer",
@@ -192,6 +247,14 @@ export default function ScoreEntry({
           <AlertCircle size={15} color="#E08A1E" />
           <span style={{ flex: 1 }}>Restored unsaved marks from this device. <strong>Save all</strong> to keep them.</span>
           <button onClick={discardDraft} style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--ink-soft)", cursor: "pointer" }}>Discard</button>
+        </div>}
+
+      {importMsg &&
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 12, padding: "10px 12px", fontSize: 13,
+          background: "color-mix(in srgb, #5B43F0 9%, transparent)", border: "1px solid color-mix(in srgb, #5B43F0 35%, transparent)", borderRadius: 10, color: "var(--ink)" }}>
+          <Upload size={15} color="#5B43F0" style={{ marginTop: 1, flexShrink: 0 }} />
+          <span style={{ flex: 1 }}>{importMsg}</span>
+          <button onClick={() => setImportMsg("")} style={{ fontSize: 12, fontWeight: 600, padding: "3px 8px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--ink-soft)", cursor: "pointer" }}>Dismiss</button>
         </div>}
 
       {status === "error" &&
