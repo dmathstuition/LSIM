@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import { UserPlus, FolderPlus, Upload, Trash2 } from "lucide-react";
 import {
   ensureProfile, getClasses, createClass, getLearnersBasic, bulkAddLearners,
-  deleteClass, deleteLearner, updateLearnerEnrollment, type ClassRow, type LearnerBasic,
+  deleteClass, deleteLearner, updateLearnerJoin, type ClassRow, type LearnerBasic,
 } from "@/lib/classes";
 
 const GRADES = ["Year 7", "Year 8", "Year 9", "Year 10", "Year 11", "Year 12"];
-const today = () => new Date().toISOString().slice(0, 10);
+// Mid-term joiner options. "" = present from the start (Term 1).
+const JOIN_TERMS = [{ v: "", label: "From start (Term 1)" }, { v: "Term 2", label: "Joined Term 2" }, { v: "Term 3", label: "Joined Term 3" }];
 const card: React.CSSProperties = { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, padding: 18, boxShadow: "var(--card-shadow)" };
 const inp: React.CSSProperties = { padding: "9px 11px", borderRadius: 10, border: "1px solid var(--border)", fontSize: 13, boxSizing: "border-box", background: "var(--surface)", color: "var(--ink)" };
 const btn: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 14px", borderRadius: 10, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer" };
@@ -22,9 +23,10 @@ export default function ClassesPage() {
   const [year, setYear] = useState("2024/2025");
   const [adm, setAdm] = useState("");
   const [name, setName] = useState("");
-  const [joined, setJoined] = useState(today());
+  const [joined, setJoined] = useState("");   // "" = from start; else "Term 2"/"Term 3"
   const [csv, setCsv] = useState("");
   const [msg, setMsg] = useState("");
+  const selSession = classes.find((c) => c.id === sel)?.academic_year ?? null;
 
   async function refresh() {
     const cs = await getClasses();
@@ -40,23 +42,23 @@ export default function ClassesPage() {
   }
   async function addOne() {
     if (!sel || !adm || !name) return;
-    try { await bulkAddLearners(sel, [{ admission_number: adm.trim(), fullname: name.trim(), enrolled_on: joined || null }]);
-      setAdm(""); setName(""); setJoined(today()); setMsg("Learner added."); setLearners(await getLearnersBasic(sel)); }
+    try { await bulkAddLearners(sel, [{ admission_number: adm.trim(), fullname: name.trim(), joined_term: joined || null, joined_session: joined ? selSession : null }]);
+      setAdm(""); setName(""); setJoined(""); setMsg("Learner added."); setLearners(await getLearnersBasic(sel)); }
     catch (e: any) { setMsg(e.message); }
   }
   async function importCsv() {
     if (!sel || !csv.trim()) return;
-    // lines: admission_number, fullname[, gender[, joined YYYY-MM-DD]]
+    // lines: admission_number, fullname[, gender[, joined-term e.g. "Term 2"]]
     const rows = csv.trim().split(/\r?\n/).map((line) => {
-      const [admission_number, fullname, gender, enrolled_on] = line.split(",").map((s) => s?.trim());
-      return { admission_number, fullname, gender: gender || null, enrolled_on: enrolled_on || null };
+      const [admission_number, fullname, gender, joined_term] = line.split(",").map((s) => s?.trim());
+      return { admission_number, fullname, gender: gender || null, joined_term: joined_term || null, joined_session: joined_term ? selSession : null };
     }).filter((r) => r.admission_number && r.fullname);
     try { await bulkAddLearners(sel, rows); setCsv(""); setMsg(`Imported ${rows.length} learners.`);
       setLearners(await getLearnersBasic(sel)); }
     catch (e: any) { setMsg(e.message); }
   }
-  async function setEnrollment(l: LearnerBasic, value: string) {
-    try { await updateLearnerEnrollment(l.id, value || null); setLearners(await getLearnersBasic(sel)); }
+  async function setJoin(l: LearnerBasic, term: string) {
+    try { await updateLearnerJoin(l.id, term ? selSession : null, term || null); setLearners(await getLearnersBasic(sel)); }
     catch (e: any) { setMsg(e.message); }
   }
   async function removeArm(c: ClassRow) {
@@ -131,16 +133,18 @@ export default function ClassesPage() {
                 <input style={{ ...inp, flex: 1, minWidth: 140 }} placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} />
                 <label style={{ display: "flex", flexDirection: "column", fontSize: 10, fontWeight: 600, color: "var(--ink-faint)", textTransform: "uppercase", letterSpacing: ".05em" }}>
                   Joined
-                  <input type="date" style={{ ...inp, flex: "0 0 150px" }} value={joined} max={today()} onChange={(e) => setJoined(e.target.value)} title="Date this learner joined the class" />
+                  <select style={{ ...inp, flex: "0 0 170px" }} value={joined} onChange={(e) => setJoined(e.target.value)} title="When this learner joined the class">
+                    {JOIN_TERMS.map((j) => <option key={j.v} value={j.v}>{j.label}</option>)}
+                  </select>
                 </label>
                 <button style={{ ...btn, alignSelf: "flex-end" }} onClick={addOne}><UserPlus size={15} /> Add</button>
               </div>
               <div style={{ marginTop: 6, fontSize: 11, color: "var(--ink-faint)" }}>
-                Set <strong>Joined</strong> to the day a mid-term learner started — their attendance &amp; assignments are only counted from then on.
+                Leave <strong>Joined</strong> as “From start” for learners present since Term 1. Mark mid-term joiners as Term 2 / Term 3 so they aren’t entered or ranked in earlier terms.
               </div>
 
               <div style={{ marginTop: 14, fontSize: 12, fontWeight: 600, color: "var(--ink-faint)", textTransform: "uppercase", letterSpacing: ".05em" }}>
-                Or paste / import many — one per line: <code>adm, name, gender, joined</code>
+                Or paste / import many — one per line: <code>adm, name, gender, joined-term</code>
               </div>
               <textarea value={csv} onChange={(e) => setCsv(e.target.value)} rows={4}
                 placeholder={"IJA/24/001, Amaka Okafor, Female\nIJA/24/002, Tunde Adeyemi, Male"}
@@ -157,9 +161,11 @@ export default function ClassesPage() {
                       borderBottom: i < learners.length - 1 ? "1px solid var(--border)" : "none", fontSize: 13 }}>
                       <span style={{ fontFamily: "ui-monospace, monospace", color: "var(--ink-faint)", width: 110 }}>{l.admission_number}</span>
                       <span style={{ fontWeight: 600, flex: 1, minWidth: 90 }}>{l.fullname}</span>
-                      <input type="date" value={l.enrolled_on ?? ""} max={today()} onChange={(e) => setEnrollment(l, e.target.value)}
-                        title="Date joined — leave blank if present from the start"
-                        style={{ ...inp, padding: "4px 7px", fontSize: 11, width: 132, color: l.enrolled_on ? "var(--ink)" : "var(--ink-faint)" }} />
+                      <select value={l.joined_term ?? ""} onChange={(e) => setJoin(l, e.target.value)}
+                        title="When this learner joined — From start if present since Term 1"
+                        style={{ ...inp, padding: "4px 7px", fontSize: 11, width: 150, color: l.joined_term ? "var(--ink)" : "var(--ink-faint)" }}>
+                        {JOIN_TERMS.map((j) => <option key={j.v} value={j.v}>{j.label}</option>)}
+                      </select>
                       <button onClick={() => removeLearner(l)} title="Delete learner" aria-label={`Delete ${l.fullname}`} className="icon-btn"
                         style={{ display: "inline-flex", alignItems: "center", padding: 5, border: "none", borderRadius: 7,
                           background: "transparent", color: "var(--ink-faint)", cursor: "pointer" }}>

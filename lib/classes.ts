@@ -3,7 +3,7 @@ const supabase = createClient();
 
 export interface ClassRow { id: string; grade_level: string; arm: string; class_name: string; academic_year: string; }
 export interface SubjectRow { id: string; subject_name: string; }
-export interface LearnerBasic { id: string; admission_number: string; fullname: string; gender: string | null; enrolled_on: string | null; }
+export interface LearnerBasic { id: string; admission_number: string; fullname: string; gender: string | null; joined_session: string | null; joined_term: string | null; }
 
 /** Safety net in case the SQL backfill wasn't run: make the profile row. */
 export async function ensureProfile() {
@@ -69,26 +69,29 @@ export async function deleteSubject(id: string) {
 
 export async function getLearnersBasic(classId: string): Promise<LearnerBasic[]> {
   const { data, error } = await supabase.from("learners")
-    .select("id, admission_number, fullname, gender, enrolled_on").eq("class_id", classId).order("fullname");
+    .select("id, admission_number, fullname, gender, joined_session, joined_term").eq("class_id", classId).order("fullname");
   if (error) throw error;
   return data ?? [];
 }
 
 export async function bulkAddLearners(
   classId: string,
-  rows: { admission_number: string; fullname: string; gender?: string | null; enrolled_on?: string | null }[]
+  rows: { admission_number: string; fullname: string; gender?: string | null; joined_session?: string | null; joined_term?: string | null }[]
 ) {
   const payload = rows.map((r) => ({
     class_id: classId, admission_number: r.admission_number,
-    fullname: r.fullname, gender: r.gender ?? null, enrolled_on: r.enrolled_on || null,
+    fullname: r.fullname, gender: r.gender ?? null,
+    joined_session: r.joined_session || null, joined_term: r.joined_term || null,
   }));
   const { error } = await supabase.from("learners")
     .upsert(payload, { onConflict: "class_id,admission_number" });
   if (error) throw error;
 }
 
-/** Update the date a learner joined the class (scopes their attendance/assignments). */
-export async function updateLearnerEnrollment(id: string, enrolled_on: string | null) {
-  const { error } = await supabase.from("learners").update({ enrolled_on: enrolled_on || null }).eq("id", id);
+/** Set the term a learner joined (NULLs = present from Term 1). Hides them from
+ *  earlier-term score entry and ranking. */
+export async function updateLearnerJoin(id: string, joined_session: string | null, joined_term: string | null) {
+  const { error } = await supabase.from("learners")
+    .update({ joined_session: joined_session || null, joined_term: joined_term || null }).eq("id", id);
   if (error) throw error;
 }

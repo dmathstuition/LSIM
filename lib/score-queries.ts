@@ -15,13 +15,24 @@ export interface EntryRow {
   exam: number;
 }
 
-/** Roster for one arm, pre-filled with any marks already entered. */
+/** True if a learner who joined at (js, jt) is present by the time (session, term).
+ *  NULL join = present from the start. Lexical compare matches the trend view's
+ *  ordering ("2024/2025" < "2025/2026", "Term 1" < "Term 2"). */
+function joinedBy(js: string | null, jt: string | null, session: string, term: string): boolean {
+  if (!js || !jt) return true;
+  if (js !== session) return js < session;
+  return jt <= term;
+}
+
+/** Roster for one arm, pre-filled with any marks already entered. Learners who
+ *  joined after the selected term/session are omitted, so they are never entered
+ *  as a 0 or ranked in a term they were not around for. */
 export async function getEntryRows(
   classId: string, subjectId: string, term: string, session: string
 ): Promise<EntryRow[]> {
   const { data: learners, error: le } = await supabase
     .from("learners")
-    .select("id, admission_number, fullname")
+    .select("id, admission_number, fullname, joined_session, joined_term")
     .eq("class_id", classId)
     .order("fullname");
   if (le) throw le;
@@ -33,13 +44,15 @@ export async function getEntryRows(
   if (se) throw se;
 
   const byLearner = new Map(scores?.map((s) => [s.learner_id, s]));
-  return (learners ?? []).map((l: any) => {
-    const s = byLearner.get(l.id);
-    return {
-      learner_id: l.id, adm: l.admission_number, name: l.fullname,
-      first_ca: s?.first_ca ?? 0, second_ca: s?.second_ca ?? 0, exam: s?.exam ?? 0,
-    };
-  });
+  return (learners ?? [])
+    .filter((l: any) => joinedBy(l.joined_session, l.joined_term, session, term))
+    .map((l: any) => {
+      const s = byLearner.get(l.id);
+      return {
+        learner_id: l.id, adm: l.admission_number, name: l.fullname,
+        first_ca: s?.first_ca ?? 0, second_ca: s?.second_ca ?? 0, exam: s?.exam ?? 0,
+      };
+    });
 }
 
 /** Bulk save. RLS guarantees a teacher can only write their own learners' rows. */

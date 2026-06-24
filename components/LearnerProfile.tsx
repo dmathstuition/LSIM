@@ -35,7 +35,7 @@ export default function LearnerProfile({ data }: { data: LearnerProfileData }) {
               {learner.admission_number} · {learner.class_label}{learner.gender ? ` · ${learner.gender}` : ""}
             </div>
             {learner.guardian_name && <div style={{ fontSize: 12, color: C.inkFaint, marginTop: 3 }}>Guardian: {learner.guardian_name}{learner.guardian_phone ? ` · ${learner.guardian_phone}` : ""}</div>}
-            {learner.enrolled_on && <div style={{ fontSize: 12, color: C.inkFaint, marginTop: 3 }}>Joined {learner.enrolled_on} · attendance &amp; assignments counted from this date</div>}
+            {learner.joined_term && <div style={{ fontSize: 12, color: C.inkFaint, marginTop: 3 }}>Joined {learner.joined_term}{learner.joined_session ? ` · ${learner.joined_session}` : ""} · not ranked in earlier terms</div>}
           </div>
         </div>
         <Chip label={`${risk.level} risk`} color={RISK[risk.level] ?? C.inkFaint} />
