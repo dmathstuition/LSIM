@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
 } from "recharts";
-import { Users, TrendingUp, Percent, CalendarCheck, FileCheck, AlertTriangle, Download, Clock, TrendingDown } from "lucide-react";
+import { Users, TrendingUp, Percent, CalendarCheck, FileCheck, AlertTriangle, Download, Clock, TrendingDown, FileText, Lightbulb } from "lucide-react";
 import type { LearnerRow, TrendPoint } from "@/lib/dashboard-queries";
 import type { OverdueFollowup } from "@/lib/intervention-queries";
 import { toCsv, downloadCsv } from "@/lib/csv";
@@ -57,7 +57,7 @@ export default function Dashboard({
   overdue?: OverdueFollowup[];
   teacherEmail?: string;
 }) {
-  const { theme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const [perfMode, setPerfMode] = useState<"top" | "bottom">("top");
   const [metric, setMetric] = useState<ScoreComponent>("total");
   const t = THEMES[theme];
@@ -101,11 +101,64 @@ export default function Dashboard({
   const perfList = perfMode === "top" ? ranked.slice(0, 8) : ranked.slice(-8).reverse();
   const atRiskList = [...learners].filter((l) => l.level !== "Low").sort((a, b) => (b.level === "Critical" ? 1 : 0) - (a.level === "Critical" ? 1 : 0) || a.avg - b.avg);
 
+  // Score comparison by gender (only groups that are actually present).
+  const byGender = useMemo(() => {
+    const order = ["Female", "Male", "Other"];
+    const groups = order.map((g) => {
+      const rows = scored.filter((l) => (l.gender ?? "Unspecified") === g);
+      const n = rows.length;
+      return {
+        name: g, n,
+        avg: n ? Math.round(rows.reduce((s, l) => s + val(l), 0) / n) : 0,
+        pass: n ? Math.round((rows.filter((l) => l.avg >= 50).length / n) * 100) : 0,
+      };
+    }).filter((g) => g.n > 0);
+    const unspecified = scored.filter((l) => !l.gender || !order.includes(l.gender)).length;
+    return { groups, unspecified };
+  }, [scored, metric]);
+  const genderColor: Record<string, string> = { Female: "#C0504D", Male: t.brand, Other: "#C9A227" };
+
+  // Auto-derived one-line inferences from the data in scope.
+  const insights = useMemo(() => {
+    const out: string[] = [];
+    if (scored.length === 0) return out;
+    const g = byGender.groups;
+    const f = g.find((x) => x.name === "Female"), m = g.find((x) => x.name === "Male");
+    if (f && m) {
+      const d = f.avg - m.avg;
+      out.push(Math.abs(d) < 1
+        ? `Girls and boys are performing about equally (${f.avg}% vs ${m.avg}%).`
+        : `${d > 0 ? "Girls" : "Boys"} lead by ${Math.abs(d)} pts on ${METRIC_TITLE[metric].toLowerCase()} (${f.avg}% vs ${m.avg}%).`);
+    }
+    const comps = COMPONENT_ORDER.filter((c) => c !== "total").map((c) => ({ c, v: breakdown.find((b) => b.key === c)?.value ?? 0 }));
+    if (comps.length) {
+      const weak = comps.reduce((a, b) => (b.v < a.v ? b : a));
+      const strong = comps.reduce((a, b) => (b.v > a.v ? b : a));
+      if (weak.v !== strong.v) out.push(`${COMPONENT_LABELS[strong.c]} is the strongest component (${strong.v}%) and ${COMPONENT_LABELS[weak.c]} the weakest (${weak.v}%).`);
+    }
+    out.push(`${k.pass.toFixed(0)}% of learners are passing (≥50%); ${k.atRisk} ${k.atRisk === 1 ? "is" : "are"} High/Critical risk.`);
+    if (ranked.length) out.push(`Top performer: ${ranked[0].name} at ${val(ranked[0])}%.`);
+    return out;
+  }, [scored, byGender, breakdown, k, ranked, metric]);
+
+  // Print to PDF. Force light colours first (inline chart colours don't adapt to
+  // an @media print rule), then restore the user's theme afterwards.
+  function downloadPdf() {
+    if (typeof window === "undefined") return;
+    if (theme === "dark") {
+      setTheme("light");
+      setTimeout(() => { window.print(); setTheme("dark"); }, 200);
+    } else {
+      window.print();
+    }
+  }
+
   function exportCsv() {
     const arm = classes.find((c) => c.id === selectedClass)?.label ?? "all-arms";
     const label = selectedSubject === "all" ? arm : `${arm}-${subjectLabel}`;
     const csv = toCsv(ranked, [
       { key: "adm", header: "Admission no." }, { key: "name", header: "Name" },
+      { key: "gender", header: "Gender", get: (l) => l.gender ?? "" },
       { key: "ca1", header: "CA1 %", get: (l) => l.comp?.first_ca ?? 0 },
       { key: "ca2", header: "CA2 %", get: (l) => l.comp?.second_ca ?? 0 },
       { key: "exam", header: "Exam %", get: (l) => l.comp?.exam ?? 0 },
@@ -128,6 +181,13 @@ export default function Dashboard({
     .dm-th{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:${t.inkFaint};text-align:left;padding:0 0 10px;}
     .dm-td{padding:11px 0;font-size:14px;}
     .dm-chip{font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;}
+    .dm-printonly{display:none;}
+    @media print {
+      .dm-root{background:#fff !important;background-image:none !important;min-height:auto !important;}
+      .dm-card{box-shadow:none !important;break-inside:avoid;page-break-inside:avoid;}
+      section{break-inside:avoid;}
+      .dm-printonly{display:block;font-size:11px;color:#576074;margin-top:3px;}
+    }
   `;
 
   const Tip = ({ active, payload, label }: any) => (!active || !payload?.length) ? null : (
@@ -163,8 +223,9 @@ export default function Dashboard({
           <div>
             <div style={{ fontSize: 18, fontWeight: 700 }}>Dashboard</div>
             <div style={{ fontSize: 12, color: t.inkFaint, marginTop: 3 }}>{teacherEmail ? `${teacherEmail} · ` : ""}{subjectLabel} · {periodLabel}</div>
+            <div className="dm-printonly">Generated {new Date().toLocaleDateString()}</div>
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div className="no-print" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <select value={selectedClass} onChange={(e) => onSelectClass(e.target.value)} style={selStyle}>
               <option value="all">All arms</option>
               {classes.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
@@ -183,6 +244,9 @@ export default function Dashboard({
             )}
             <button onClick={exportCsv} disabled={learners.length === 0} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, padding: "8px 13px", borderRadius: 10, border: `1px solid ${t.border}`, background: t.surface, color: t.ink, cursor: learners.length === 0 ? "not-allowed" : "pointer", opacity: learners.length === 0 ? 0.5 : 1 }}>
               <Download size={15} /> Export CSV
+            </button>
+            <button onClick={downloadPdf} disabled={learners.length === 0} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, padding: "8px 13px", borderRadius: 10, border: "none", background: t.brand, color: "#fff", cursor: learners.length === 0 ? "not-allowed" : "pointer", opacity: learners.length === 0 ? 0.5 : 1 }}>
+              <FileText size={15} /> Download PDF
             </button>
           </div>
         </header>
@@ -272,6 +336,45 @@ export default function Dashboard({
                     ))}
                   </div>
                 </div>
+              </Panel>
+            </section>
+
+            <section className="lay-side" style={{ marginBottom: 14 }}>
+              <Panel title="Gender comparison" sub={`${METRIC_TITLE[metric]} average & pass rate by gender`}>
+                {byGender.groups.length === 0 ? <NoData msg="Add gender on the Classes page to compare." /> : (
+                  <>
+                    <ResponsiveContainer width="100%" height={180}>
+                      <BarChart data={byGender.groups} margin={{ top: 6, right: 10, left: -18, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={t.border} vertical={false} />
+                        <XAxis dataKey="name" tick={{ fontSize: 12, fill: t.inkSoft }} tickLine={false} axisLine={{ stroke: t.border }} />
+                        <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: t.inkFaint }} tickLine={false} axisLine={false} />
+                        <Tooltip content={<Tip />} cursor={{ fill: t.grid }} />
+                        <Bar dataKey="avg" name={METRIC_TITLE[metric]} radius={[5, 5, 0, 0]}>
+                          {byGender.groups.map((g, i) => <Cell key={i} fill={genderColor[g.name] ?? t.brand} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                      {byGender.groups.map((g) => (
+                        <div key={g.name} style={{ flex: "1 1 120px", border: `1px solid ${t.border}`, borderRadius: 10, padding: "8px 11px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 600 }}>
+                            <span style={{ width: 9, height: 9, borderRadius: 3, background: genderColor[g.name] ?? t.brand }} />{g.name} · {g.n}
+                          </div>
+                          <div className="dm-num" style={{ marginTop: 4, fontSize: 13 }}>Avg <b style={{ color: bandOf(g.avg).color }}>{g.avg}%</b> · Pass <b>{g.pass}%</b></div>
+                        </div>
+                      ))}
+                      {byGender.unspecified > 0 && <div style={{ alignSelf: "center", fontSize: 11, color: t.inkFaint }}>{byGender.unspecified} without gender set</div>}
+                    </div>
+                  </>
+                )}
+              </Panel>
+              <Panel title="Insights" sub="Auto-derived from the data in view"
+                right={<Lightbulb size={16} color={t.brand} />}>
+                {insights.length === 0 ? <NoData msg="No data in scope." /> : (
+                  <ul style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 9 }}>
+                    {insights.map((s, i) => <li key={i} style={{ fontSize: 13.5, lineHeight: 1.45, color: t.ink }}>{s}</li>)}
+                  </ul>
+                )}
               </Panel>
             </section>
 
