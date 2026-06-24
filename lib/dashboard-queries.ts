@@ -6,7 +6,7 @@ export type { RiskLevel };
 /** Per-learner average for each assessment component, as a % of its max. */
 export type ComponentPct = Record<ScoreComponent, number>;
 export interface LearnerRow {
-  id: string; adm: string; name: string;
+  id: string; adm: string; name: string; gender: string | null;
   avg: number; attendance: number; missing: number; level: RiskLevel; declining: boolean;
   comp: ComponentPct;
   /** True if the learner has ≥1 score row in the current scope (the selected
@@ -63,11 +63,12 @@ export async function getLearners(classId?: string, scope: ScoreScope = {}): Pro
 
   const ids = (data ?? []).map((r: any) => r.learner_id);
   const admMap = new Map<string, string>();
+  const genderMap = new Map<string, string | null>();
   const compMap = new Map<string, ComponentPct>();
   const scopedAvg = new Map<string, number>();   // mean total within the scope
   if (ids.length) {
-    const { data: ls } = await supabase.from("learners").select("id, admission_number").in("id", ids);
-    (ls ?? []).forEach((l: any) => admMap.set(l.id, l.admission_number));
+    const { data: ls } = await supabase.from("learners").select("id, admission_number, gender").in("id", ids);
+    (ls ?? []).forEach((l: any) => { admMap.set(l.id, l.admission_number); genderMap.set(l.id, l.gender ?? null); });
 
     // Per-component averages come from the raw component marks in score_report,
     // optionally narrowed to a subject / term / session.
@@ -97,6 +98,7 @@ export async function getLearners(classId?: string, scope: ScoreScope = {}): Pro
       : Math.round(r.avg_total ?? 0);
     return {
       id: r.learner_id, adm: admMap.get(r.learner_id) ?? "", name: r.fullname,
+      gender: genderMap.get(r.learner_id) ?? null,
       avg, attendance: Math.round(r.attendance_pct ?? 0),
       missing: r.missing_assignments ?? 0, level: (r.risk_level ?? "Low") as RiskLevel,
       declining: (r.score_delta ?? 0) <= -5,
