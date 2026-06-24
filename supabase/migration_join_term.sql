@@ -15,6 +15,11 @@
 -- referenced enrolled_on, which is dropped here).
 -- ============================================================
 
+-- Drop the dependent views FIRST: they reference enrolled_on (from
+-- migration_enrollment.sql), so the column can't be dropped while they exist.
+drop view if exists learner_risk_level;
+drop view if exists learner_risk;
+
 alter table learners drop column if exists enrolled_on;
 alter table learners add column if not exists joined_session text;
 alter table learners add column if not exists joined_term    text;
@@ -22,9 +27,6 @@ comment on column learners.joined_term is
   'Term the learner joined (e.g. "Term 2"); NULL = present from Term 1. Hides them from earlier-term score entry/ranking.';
 comment on column learners.joined_session is
   'Session matching joined_term (e.g. "2024/2025"); set from the arm''s academic_year.';
-
-drop view if exists learner_risk_level;
-drop view if exists learner_risk;
 
 create view learner_risk with (security_invoker = true) as
 with score_stats as (
