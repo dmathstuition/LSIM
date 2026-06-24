@@ -50,7 +50,7 @@ placeholder Supabase env vars so the static prerender passes).
 ## Screens
 | Route | What it does |
 |-------|--------------|
-| `/dashboard` | KPIs, performance & risk charts, at-risk list (names link to profiles). |
+| `/dashboard` | KPIs, performance & risk charts, at-risk list (names link to profiles). A **component breakdown** + Total/CA1/CA2/Exam selector analyses each assessment component (normalised to % of its max) across the average, distribution, trend and rankings. |
 | `/scores` | Bulk score-entry grid — live totals, mark-cap validation, one upsert save. |
 | `/attendance` | Daily per-arm register (Present / Late / Absent), one upsert per date. |
 | `/assignments` | Create assignments per arm and mark each learner's submission status. |

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Dashboard from "@/components/Dashboard";
-import { getLearners, getScoreTrend, getAttendanceTrend, type LearnerRow } from "@/lib/dashboard-queries";
+import { getLearners, getScoreTrend, getAttendanceTrend, type LearnerRow, type TrendPoint } from "@/lib/dashboard-queries";
 import { getOverdueFollowups, type OverdueFollowup } from "@/lib/intervention-queries";
 import { getClasses } from "@/lib/classes";
 import { createClient } from "@/lib/supabase/client";
@@ -11,7 +11,7 @@ export default function DashboardPage() {
   const [learners, setLearners] = useState<LearnerRow[]>([]);
   const [classes, setClasses] = useState<{ id: string; label: string }[]>([]);
   const [sel, setSel] = useState("all");
-  const [trend, setTrend] = useState<{ term: string; avg: number }[]>([]);
+  const [trend, setTrend] = useState<TrendPoint[]>([]);
   const [att, setAtt] = useState<{ w: string; v: number }[]>([]);
   const [overdue, setOverdue] = useState<OverdueFollowup[]>([]);
   const [email, setEmail] = useState<string | undefined>();

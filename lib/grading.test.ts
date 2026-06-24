@@ -1,7 +1,16 @@
 import { describe, it, expect } from "vitest";
 import {
-  gradeFor, performanceCategory, bandOf, riskScore, riskLevel, computeKpis, isoWeek,
+  gradeFor, performanceCategory, bandOf, riskScore, riskLevel, computeKpis, isoWeek, componentPct,
 } from "./grading";
+
+describe("componentPct — normalize to % of max", () => {
+  it("scales each component by its cap", () => {
+    expect(componentPct("first_ca", 20)).toBe(100); // CA1 out of 20
+    expect(componentPct("second_ca", 10)).toBe(50);
+    expect(componentPct("exam", 30)).toBe(50);       // Exam out of 60
+    expect(componentPct("total", 75)).toBe(75);
+  });
+});
 
 describe("gradeFor — boundaries", () => {
   it("maps band edges", () => {
