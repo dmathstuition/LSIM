@@ -17,6 +17,6 @@ export default function LearnerPage() {
   }, [id]);
 
   if (error) return <div style={{ padding: 40, textAlign: "center", color: "#D2353A" }}>{error}</div>;
-  if (!data) return <div style={{ padding: 40, textAlign: "center", color: "#8B92A4" }}>Loading…</div>;
+  if (!data) return <div style={{ padding: 40, textAlign: "center", color: "var(--ink-faint)" }}>Loading…</div>;
   return <LearnerProfile data={data} />;
 }

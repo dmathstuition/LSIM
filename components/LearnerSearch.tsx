@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { searchLearners, type LearnerSearchResult } from "@/lib/learner-queries";
 
-const INK = "#576074", FAINT = "#8B92A4", BORDER = "#E1E5EF", BRAND = "#5B43F0";
+const INK = "var(--ink-soft)", FAINT = "var(--ink-faint)", BORDER = "var(--border)", BRAND = "var(--brand)";
 
 export default function LearnerSearch({ block = false }: { block?: boolean }) {
   const router = useRouter();
@@ -45,7 +45,7 @@ export default function LearnerSearch({ block = false }: { block?: boolean }) {
     <>
       <button onClick={() => setOpen(true)} aria-label="Search learners" className="nav-link"
         style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 11px", borderRadius: 9,
-          border: `1px solid ${BORDER}`, background: "#fff", color: FAINT, cursor: "pointer",
+          border: `1px solid ${BORDER}`, background: "var(--surface)", color: FAINT, cursor: "pointer",
           fontSize: 13, fontWeight: 600, width: block ? "100%" : undefined, justifyContent: block ? "flex-start" : undefined }}>
         <Search size={15} /> Search{block ? " learners" : ""}
       </button>
@@ -54,11 +54,11 @@ export default function LearnerSearch({ block = false }: { block?: boolean }) {
         <div onClick={() => setOpen(false)}
           style={{ position: "fixed", inset: 0, background: "rgba(8,11,20,.45)", zIndex: 200, display: "flex", justifyContent: "center", alignItems: "flex-start", padding: "12vh 16px 16px" }}>
           <div onClick={(e) => e.stopPropagation()}
-            style={{ width: "min(520px, 100%)", background: "#fff", border: `1px solid ${BORDER}`, borderRadius: 14, boxShadow: "0 16px 48px rgba(8,11,20,.28)", overflow: "hidden" }}>
+            style={{ width: "min(520px, 100%)", background: "var(--surface)", border: `1px solid ${BORDER}`, borderRadius: 14, boxShadow: "0 16px 48px rgba(8,11,20,.28)", overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderBottom: `1px solid ${BORDER}` }}>
               <Search size={17} color={FAINT} />
               <input ref={inputRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name or admission number…"
-                style={{ flex: 1, border: "none", outline: "none", fontSize: 15, color: "#13182B", background: "transparent" }} />
+                style={{ flex: 1, border: "none", outline: "none", fontSize: 15, color: "var(--ink)", background: "transparent" }} />
               <button onClick={() => setOpen(false)} aria-label="Close" style={{ border: "none", background: "transparent", color: FAINT, cursor: "pointer" }}><X size={18} /></button>
             </div>
             <div style={{ maxHeight: 360, overflowY: "auto" }}>
@@ -67,12 +67,12 @@ export default function LearnerSearch({ block = false }: { block?: boolean }) {
                 : results.length === 0 ? <Hint>No learners found.</Hint>
                 : results.map((r) => (
                   <button key={r.id} onClick={() => go(r.id)} className="row-hover"
-                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", border: "none", background: "transparent", cursor: "pointer", textAlign: "left", borderTop: `1px solid #F2F4F8` }}>
-                    <span style={{ width: 30, height: 30, borderRadius: 8, background: "#ECE9FF", color: BRAND, display: "grid", placeItems: "center", fontSize: 12, fontWeight: 700 }}>
+                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", border: "none", background: "transparent", cursor: "pointer", textAlign: "left", borderTop: `1px solid var(--border)` }}>
+                    <span style={{ width: 30, height: 30, borderRadius: 8, background: "var(--brand-soft)", color: BRAND, display: "grid", placeItems: "center", fontSize: 12, fontWeight: 700 }}>
                       {r.fullname.slice(0, 1).toUpperCase()}
                     </span>
                     <span style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "#13182B" }}>{r.fullname}</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)" }}>{r.fullname}</div>
                       <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 11, color: FAINT }}>{r.admission_number}{r.class_label ? ` · ${r.class_label}` : ""}</div>
                     </span>
                   </button>

@@ -36,7 +36,7 @@ export default function DashboardPage() {
     })().catch(console.error);
   }, [sel]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: "center", color: "#8B92A4" }}>Loading…</div>;
+  if (loading) return <div style={{ padding: 40, textAlign: "center", color: "var(--ink-faint)" }}>Loading…</div>;
 
   return (
     <Dashboard learners={learners} classes={classes} selectedClass={sel} onSelectClass={setSel}

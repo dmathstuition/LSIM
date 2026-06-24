@@ -78,7 +78,7 @@ export default function ScoreEntry({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
         <div>
           <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 18, fontWeight: 700 }}>Score entry</div>
-          <div style={{ fontSize: 12, color: "#8B92A4", marginTop: 3 }}>
+          <div style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 3 }}>
             CA1 /{CAP.first_ca} · CA2 /{CAP.second_ca} · Exam /{CAP.exam} · Total /{TOTAL_MAX}
           </div>
         </div>
@@ -108,13 +108,13 @@ export default function ScoreEntry({
       {status === "loading" ? <Empty>Loading learners…</Empty>
         : rows.length === 0 ? <Empty>No learners in this arm yet. Add them under Classes &amp; learners.</Empty>
           : (
-            <div className="table-wrap" style={{ background: "#fff", border: "1px solid #E1E5EF", borderRadius: 14, boxShadow: "0 1px 2px rgba(19,24,43,.05)" }}>
+            <div className="table-wrap" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, boxShadow: "var(--card-shadow)" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
                 <thead>
-                  <tr style={{ background: "#F5F7FB" }}>
+                  <tr style={{ background: "var(--surface2)" }}>
                     {["#", "Learner", "CA1", "CA2", "Exam", "Total", "%"].map((h, i) => (
                       <th key={h} style={{ textAlign: i > 1 ? "center" : "left", padding: "11px 12px", fontSize: 11,
-                        letterSpacing: ".05em", textTransform: "uppercase", color: "#8B92A4", borderBottom: "1px solid #E1E5EF" }}>{h}</th>
+                        letterSpacing: ".05em", textTransform: "uppercase", color: "var(--ink-faint)", borderBottom: "1px solid var(--border)" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -122,31 +122,31 @@ export default function ScoreEntry({
                   {rows.map((r, i) => {
                     const total = totals[i];
                     return (
-                      <tr key={r.learner_id} style={{ borderBottom: "1px solid #EEF1F6" }}>
-                        <td style={{ padding: "8px 12px", fontFamily: "ui-monospace, monospace", fontSize: 11, color: "#8B92A4" }}>{i + 1}</td>
+                      <tr key={r.learner_id} style={{ borderBottom: "1px solid var(--border)" }}>
+                        <td style={{ padding: "8px 12px", fontFamily: "ui-monospace, monospace", fontSize: 11, color: "var(--ink-faint)" }}>{i + 1}</td>
                         <td style={{ padding: "8px 12px" }}>
                           <div style={{ fontWeight: 600 }}>{r.name}</div>
-                          <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 11, color: "#8B92A4" }}>{r.adm}</div>
+                          <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 11, color: "var(--ink-faint)" }}>{r.adm}</div>
                         </td>
                         {(["first_ca", "second_ca", "exam"] as const).map((f) => (
                           <td key={f} style={{ padding: "8px 6px", textAlign: "center" }}>
                             <input type="number" inputMode="numeric" value={r[f] || ""} onChange={(e) => set(i, f, e.target.value)}
                               style={{ width: 56, padding: "7px 6px", textAlign: "center", fontFamily: "ui-monospace, monospace",
-                                borderRadius: 8, border: `1px solid ${overCap(r[f], f) ? "#D2353A" : "#E1E5EF"}`,
-                                background: overCap(r[f], f) ? "#FDECEC" : "#fff" }} />
+                                borderRadius: 8, border: `1px solid ${overCap(r[f], f) ? "#D2353A" : "var(--border)"}`, color: "var(--ink)",
+                                background: overCap(r[f], f) ? "color-mix(in srgb, var(--bad) 14%, transparent)" : "var(--surface)" }} />
                           </td>
                         ))}
                         <td style={{ padding: "8px 12px", textAlign: "center", fontFamily: "ui-monospace, monospace", fontWeight: 700, color: bandColor(total) }}>{total}</td>
-                        <td style={{ padding: "8px 12px", textAlign: "center", fontFamily: "ui-monospace, monospace", color: "#576074" }}>{Math.round((total / TOTAL_MAX) * 100)}%</td>
+                        <td style={{ padding: "8px 12px", textAlign: "center", fontFamily: "ui-monospace, monospace", color: "var(--ink-soft)" }}>{Math.round((total / TOTAL_MAX) * 100)}%</td>
                       </tr>
                     );
                   })}
                 </tbody>
                 <tfoot>
-                  <tr style={{ background: "#F5F7FB" }}>
-                    <td colSpan={5} style={{ padding: "11px 12px", fontSize: 13, color: "#576074" }}>{rows.length} learners</td>
+                  <tr style={{ background: "var(--surface2)" }}>
+                    <td colSpan={5} style={{ padding: "11px 12px", fontSize: 13, color: "var(--ink-soft)" }}>{rows.length} learners</td>
                     <td style={{ padding: "11px 12px", textAlign: "center", fontFamily: "ui-monospace, monospace", fontWeight: 700 }}>{classAvg.toFixed(1)}</td>
-                    <td style={{ padding: "11px 12px", textAlign: "center", fontSize: 12, color: "#8B92A4" }}>avg</td>
+                    <td style={{ padding: "11px 12px", textAlign: "center", fontSize: 12, color: "var(--ink-faint)" }}>avg</td>
                   </tr>
                 </tfoot>
               </table>
@@ -157,16 +157,16 @@ export default function ScoreEntry({
 }
 
 function Wrap({ children }: { children: React.ReactNode }) {
-  return <div className="page-pad" style={{ maxWidth: 940, margin: "0 auto", fontFamily: "system-ui, sans-serif", color: "#13182B" }}>{children}</div>;
+  return <div className="page-pad" style={{ maxWidth: 940, margin: "0 auto", fontFamily: "system-ui, sans-serif", color: "var(--ink)" }}>{children}</div>;
 }
 function Empty({ children }: { children: React.ReactNode }) {
-  return <div style={{ background: "#fff", border: "1px dashed #D5DAE6", borderRadius: 14, padding: 32, textAlign: "center", color: "#8B92A4", fontSize: 14 }}>{children}</div>;
+  return <div style={{ background: "var(--surface)", border: "1px dashed var(--border)", borderRadius: 14, padding: 32, textAlign: "center", color: "var(--ink-faint)", fontSize: 14 }}>{children}</div>;
 }
 function Sel({ label, value, set, opts }: { label: string; value: string; set: (v: string) => void; opts: Opt[] }) {
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: ".05em", textTransform: "uppercase", color: "#8B92A4" }}>{label}</span>
-      <select value={value} onChange={(e) => set(e.target.value)} style={{ padding: "9px 11px", borderRadius: 10, border: "1px solid #E1E5EF", fontSize: 13, fontWeight: 600, background: "#fff", cursor: "pointer" }}>
+      <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--ink-faint)" }}>{label}</span>
+      <select value={value} onChange={(e) => set(e.target.value)} style={{ padding: "9px 11px", borderRadius: 10, border: "1px solid var(--border)", fontSize: 13, fontWeight: 600, background: "var(--surface)", color: "var(--ink)", cursor: "pointer" }}>
         {opts.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
       </select>
     </label>

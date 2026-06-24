@@ -6,10 +6,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { getRole, isSupervisor } from "@/lib/role";
 import { useMediaQuery } from "@/lib/use-media-query";
+import { useTheme } from "@/components/ThemeProvider";
 import LearnerSearch from "@/components/LearnerSearch";
 import {
   LayoutDashboard, ClipboardList, Users, CalendarCheck, ClipboardCheck,
-  HeartPulse, FileText, Shield, LogOut, Menu, X, CalendarRange, Settings, BookMarked,
+  HeartPulse, FileText, Shield, LogOut, Menu, X, CalendarRange, Settings, BookMarked, Moon, Sun,
 } from "lucide-react";
 
 const LINKS = [
@@ -25,7 +26,7 @@ const LINKS = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-const BRAND = "#5B43F0", INK = "#576074", ACTIVE_BG = "#ECE9FF";
+const BRAND = "var(--brand)", INK = "var(--ink-soft)", ACTIVE_BG = "var(--brand-soft)";
 
 function Brand() {
   return (
@@ -39,6 +40,7 @@ export default function NavBar() {
   const path = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const { theme, toggle } = useTheme();
   const [supervisor, setSupervisor] = useState(false);
   const [open, setOpen] = useState(false);
   const isMobile = useMediaQuery("(max-width: 760px)");
@@ -63,15 +65,27 @@ export default function NavBar() {
   });
 
   const bar: React.CSSProperties = {
-    background: "#fff", borderBottom: "1px solid #E1E5EF", padding: "0 16px",
+    background: "var(--surface)", borderBottom: "1px solid var(--border)", padding: "0 16px",
     display: "flex", alignItems: "center", gap: 4, height: 56, position: "sticky", top: 0, zIndex: 50,
-    boxShadow: "0 1px 3px rgba(19,24,43,.04)",
+    boxShadow: "var(--card-shadow)",
   };
   const signOutBtn: React.CSSProperties = {
     display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 9,
     fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
-    border: "1px solid #E1E5EF", background: "#fff", color: INK,
+    border: "1px solid var(--border)", background: "var(--surface)", color: INK,
   };
+  const themeBtn: React.CSSProperties = {
+    display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+    border: "1px solid var(--border)", background: "var(--surface)", color: INK, borderRadius: 9,
+  };
+  const ThemeToggle = ({ block = false }: { block?: boolean }) => (
+    <button onClick={toggle} aria-label="Toggle dark mode" className="nav-link"
+      style={block
+        ? { ...themeBtn, gap: 9, padding: "12px 14px", width: "100%", justifyContent: "flex-start", fontSize: 14, fontWeight: 600 }
+        : { ...themeBtn, width: 38, height: 38 }}>
+      {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}{block ? <span>{theme === "light" ? "Dark mode" : "Light mode"}</span> : null}
+    </button>
+  );
 
   // ---------- Mobile: brand + hamburger + slide-in drawer ----------
   if (isMobile) {
@@ -79,18 +93,21 @@ export default function NavBar() {
       <>
         <nav className="no-print" style={bar}>
           <Brand />
-          <button onClick={() => setOpen(true)} aria-label="Open menu" className="icon-btn"
-            style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", justifyContent: "center",
-              width: 40, height: 40, borderRadius: 10, border: "1px solid #E1E5EF", background: "#fff", color: INK, cursor: "pointer" }}>
-            <Menu size={20} />
-          </button>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+            <ThemeToggle />
+            <button onClick={() => setOpen(true)} aria-label="Open menu" className="icon-btn"
+              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center",
+                width: 38, height: 38, borderRadius: 9, border: "1px solid var(--border)", background: "var(--surface)", color: INK, cursor: "pointer" }}>
+              <Menu size={20} />
+            </button>
+          </div>
         </nav>
 
         {open && (
           <div className="no-print" onClick={() => setOpen(false)}
             style={{ position: "fixed", inset: 0, background: "rgba(8,11,20,.45)", zIndex: 100 }}>
             <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: 0, left: 0, bottom: 0,
-              width: "min(280px, 82vw)", background: "#fff", padding: 14, display: "flex", flexDirection: "column",
+              width: "min(280px, 82vw)", background: "var(--surface)", padding: 14, display: "flex", flexDirection: "column",
               gap: 4, boxShadow: "2px 0 16px rgba(8,11,20,.18)", overflowY: "auto" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 6px 12px" }}>
                 <Brand />
@@ -105,7 +122,8 @@ export default function NavBar() {
                   <Icon size={18} /> {label}
                 </Link>
               ))}
-              <button onClick={signOut} style={{ ...signOutBtn, marginTop: 10, justifyContent: "center", padding: "12px 14px" }}>
+              <ThemeToggle block />
+              <button onClick={signOut} style={{ ...signOutBtn, marginTop: 6, justifyContent: "center", padding: "12px 14px" }}>
                 <LogOut size={16} /> Sign out
               </button>
             </div>
@@ -126,6 +144,7 @@ export default function NavBar() {
       ))}
       <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
         <LearnerSearch />
+        <ThemeToggle />
         <button onClick={signOut} className="btn-press" style={signOutBtn}>
           <LogOut size={15} /> Sign out
         </button>

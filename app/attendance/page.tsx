@@ -18,7 +18,7 @@ export default function AttendancePage() {
     })().catch(console.error);
   }, []);
 
-  if (!ready) return <div style={{ padding: 40, textAlign: "center", color: "#8B92A4" }}>Loading…</div>;
+  if (!ready) return <div style={{ padding: 40, textAlign: "center", color: "var(--ink-faint)" }}>Loading…</div>;
 
   return (
     <AttendanceRegister

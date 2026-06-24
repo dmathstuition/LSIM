@@ -8,9 +8,9 @@ import {
 } from "@/lib/classes";
 
 const GRADES = ["Year 7", "Year 8", "Year 9", "Year 10", "Year 11", "Year 12"];
-const card: React.CSSProperties = { background: "#fff", border: "1px solid #E1E5EF", borderRadius: 14, padding: 18, boxShadow: "0 1px 2px rgba(19,24,43,.05), 0 1px 3px rgba(19,24,43,.04)" };
-const inp: React.CSSProperties = { padding: "9px 11px", borderRadius: 10, border: "1px solid #E1E5EF", fontSize: 13, boxSizing: "border-box" };
-const btn: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 14px", borderRadius: 10, border: "none", background: "#5B43F0", color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer" };
+const card: React.CSSProperties = { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, padding: 18, boxShadow: "var(--card-shadow)" };
+const inp: React.CSSProperties = { padding: "9px 11px", borderRadius: 10, border: "1px solid var(--border)", fontSize: 13, boxSizing: "border-box", background: "var(--surface)", color: "var(--ink)" };
+const btn: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 14px", borderRadius: 10, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer" };
 
 export default function ClassesPage() {
   const [classes, setClasses] = useState<ClassRow[]>([]);
@@ -68,40 +68,40 @@ export default function ClassesPage() {
   }
 
   return (
-    <div className="page-pad" style={{ maxWidth: 960, margin: "0 auto", fontFamily: "system-ui, sans-serif", color: "#13182B" }}>
+    <div className="page-pad" style={{ maxWidth: 960, margin: "0 auto", fontFamily: "system-ui, sans-serif", color: "var(--ink)" }}>
       <h1 className="h-page" style={{ marginTop: 0, marginBottom: 4 }}>Classes &amp; learners</h1>
-      <p style={{ fontSize: 13, color: "#8B92A4", marginTop: 0, marginBottom: 18 }}>
+      <p style={{ fontSize: 13, color: "var(--ink-faint)", marginTop: 0, marginBottom: 18 }}>
         Create each arm you teach, then add its learners.
       </p>
-      {msg && <div style={{ fontSize: 13, color: "#5B43F0", marginBottom: 14 }}>{msg}</div>}
+      {msg && <div style={{ fontSize: 13, color: "var(--brand)", marginBottom: 14 }}>{msg}</div>}
 
       <div className="lay-side">
         {/* create arm */}
         <div style={card}>
           <div style={{ display: "flex", alignItems: "center", gap: 7, fontWeight: 700, marginBottom: 12 }}>
-            <FolderPlus size={17} color="#5B43F0" /> New arm
+            <FolderPlus size={17} color="var(--brand)" /> New arm
           </div>
           <div style={{ display: "grid", gap: 9 }}>
-            <select style={{ ...inp, fontWeight: 600, cursor: "pointer", background: "#fff" }} value={grade} onChange={(e) => setGrade(e.target.value)}>
+            <select style={{ ...inp, fontWeight: 600, cursor: "pointer" }} value={grade} onChange={(e) => setGrade(e.target.value)}>
               {GRADES.map((g) => <option key={g} value={g}>{g}</option>)}
             </select>
             <input style={inp} placeholder="Arm (e.g. A)" value={arm} onChange={(e) => setArm(e.target.value)} />
             <input style={inp} placeholder="Session (e.g. 2024/2025)" value={year} onChange={(e) => setYear(e.target.value)} />
             <button style={btn} onClick={addArm}><FolderPlus size={15} /> Create arm</button>
           </div>
-          <div style={{ marginTop: 16, fontSize: 12, fontWeight: 600, color: "#8B92A4", textTransform: "uppercase", letterSpacing: ".05em" }}>Your arms</div>
+          <div style={{ marginTop: 16, fontSize: 12, fontWeight: 600, color: "var(--ink-faint)", textTransform: "uppercase", letterSpacing: ".05em" }}>Your arms</div>
           <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {classes.length === 0 && <span style={{ fontSize: 13, color: "#8B92A4" }}>None yet.</span>}
+            {classes.length === 0 && <span style={{ fontSize: 13, color: "var(--ink-faint)" }}>None yet.</span>}
             {classes.map((c) => (
-              <span key={c.id} style={{ display: "inline-flex", alignItems: "center", borderRadius: 8, border: "1px solid #E1E5EF",
-                background: sel === c.id ? "#ECE9FF" : "#fff", overflow: "hidden" }}>
+              <span key={c.id} style={{ display: "inline-flex", alignItems: "center", borderRadius: 8, border: "1px solid var(--border)",
+                background: sel === c.id ? "var(--brand-soft)" : "var(--surface)", overflow: "hidden" }}>
                 <button onClick={() => setSel(c.id)} style={{ padding: "6px 6px 6px 11px", fontSize: 13, fontWeight: 600,
-                  cursor: "pointer", border: "none", background: "transparent", color: sel === c.id ? "#5B43F0" : "#576074" }}>
+                  cursor: "pointer", border: "none", background: "transparent", color: sel === c.id ? "var(--brand)" : "var(--ink-soft)" }}>
                   {c.grade_level} {c.arm}
                 </button>
                 <button onClick={() => removeArm(c)} title="Delete arm" aria-label={`Delete ${c.grade_level} ${c.arm}`}
                   style={{ display: "inline-flex", alignItems: "center", padding: "6px 8px", border: "none",
-                    borderLeft: "1px solid #E1E5EF", background: "transparent", color: "#8B92A4", cursor: "pointer" }}>
+                    borderLeft: "1px solid var(--border)", background: "transparent", color: "var(--ink-faint)", cursor: "pointer" }}>
                   <Trash2 size={13} />
                 </button>
               </span>
@@ -112,12 +112,12 @@ export default function ClassesPage() {
         {/* add learners */}
         <div style={card}>
           <div style={{ display: "flex", alignItems: "center", gap: 7, fontWeight: 700, marginBottom: 4 }}>
-            <UserPlus size={17} color="#5B43F0" /> Add learners
-            {sel && <span style={{ fontWeight: 500, color: "#8B92A4", fontSize: 13 }}>
+            <UserPlus size={17} color="var(--brand)" /> Add learners
+            {sel && <span style={{ fontWeight: 500, color: "var(--ink-faint)", fontSize: 13 }}>
               · {classes.find((c) => c.id === sel)?.grade_level} {classes.find((c) => c.id === sel)?.arm}</span>}
           </div>
           {!sel ? (
-            <p style={{ fontSize: 13, color: "#8B92A4" }}>Create an arm first, then select it.</p>
+            <p style={{ fontSize: 13, color: "var(--ink-faint)" }}>Create an arm first, then select it.</p>
           ) : (
             <>
               <div style={{ display: "flex", gap: 9, marginTop: 10 }}>
@@ -126,7 +126,7 @@ export default function ClassesPage() {
                 <button style={btn} onClick={addOne}><UserPlus size={15} /> Add</button>
               </div>
 
-              <div style={{ marginTop: 14, fontSize: 12, fontWeight: 600, color: "#8B92A4", textTransform: "uppercase", letterSpacing: ".05em" }}>
+              <div style={{ marginTop: 14, fontSize: 12, fontWeight: 600, color: "var(--ink-faint)", textTransform: "uppercase", letterSpacing: ".05em" }}>
                 Or paste / import many — one per line: <code>adm, name, gender</code>
               </div>
               <textarea value={csv} onChange={(e) => setCsv(e.target.value)} rows={4}
@@ -135,18 +135,18 @@ export default function ClassesPage() {
               <button style={{ ...btn, marginTop: 8 }} onClick={importCsv}><Upload size={15} /> Import list</button>
 
               <div style={{ marginTop: 18 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#8B92A4", marginBottom: 6 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-faint)", marginBottom: 6 }}>
                   {learners.length} learner{learners.length === 1 ? "" : "s"} in this arm
                 </div>
-                <div style={{ border: "1px solid #EEF1F6", borderRadius: 10, maxHeight: 240, overflow: "auto" }}>
+                <div style={{ border: "1px solid var(--border)", borderRadius: 10, maxHeight: 240, overflow: "auto" }}>
                   {learners.map((l, i) => (
                     <div key={l.id} className="row-hover" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
-                      borderBottom: i < learners.length - 1 ? "1px solid #F2F4F8" : "none", fontSize: 13 }}>
-                      <span style={{ fontFamily: "ui-monospace, monospace", color: "#8B92A4", width: 110 }}>{l.admission_number}</span>
+                      borderBottom: i < learners.length - 1 ? "1px solid var(--border)" : "none", fontSize: 13 }}>
+                      <span style={{ fontFamily: "ui-monospace, monospace", color: "var(--ink-faint)", width: 110 }}>{l.admission_number}</span>
                       <span style={{ fontWeight: 600, flex: 1 }}>{l.fullname}</span>
                       <button onClick={() => removeLearner(l)} title="Delete learner" aria-label={`Delete ${l.fullname}`} className="icon-btn"
                         style={{ display: "inline-flex", alignItems: "center", padding: 5, border: "none", borderRadius: 7,
-                          background: "transparent", color: "#8B92A4", cursor: "pointer" }}>
+                          background: "transparent", color: "var(--ink-faint)", cursor: "pointer" }}>
                         <Trash2 size={14} />
                       </button>
                     </div>

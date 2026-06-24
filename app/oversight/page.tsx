@@ -19,7 +19,7 @@ export default function OversightPage() {
     })().catch(console.error);
   }, [router]);
 
-  if (denied) return <div style={{ padding: 40, textAlign: "center", color: "#8B92A4" }}>Supervisors only — redirecting…</div>;
-  if (!data) return <div style={{ padding: 40, textAlign: "center", color: "#8B92A4" }}>Loading…</div>;
+  if (denied) return <div style={{ padding: 40, textAlign: "center", color: "var(--ink-faint)" }}>Supervisors only — redirecting…</div>;
+  if (!data) return <div style={{ padding: 40, textAlign: "center", color: "var(--ink-faint)" }}>Loading…</div>;
   return <Oversight data={data} />;
 }

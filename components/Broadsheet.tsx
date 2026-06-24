@@ -48,10 +48,10 @@ export default function Broadsheet({
       <PageHead title="Class broadsheet" sub="Every learner × subject for one arm, term and session. Print to PDF for records."
         right={
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={exportCsv} disabled={!data || data.rows.length === 0} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, padding: "9px 14px", borderRadius: 10, border: `1px solid ${C.border}`, background: "#fff", color: C.ink, cursor: "pointer", opacity: !data || data.rows.length === 0 ? 0.5 : 1 }}>
+            <button onClick={exportCsv} disabled={!data || data.rows.length === 0} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, padding: "9px 14px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.surface, color: C.ink, cursor: "pointer", opacity: !data || data.rows.length === 0 ? 0.5 : 1 }}>
               <Download size={15} /> CSV
             </button>
-            <button onClick={() => window.print()} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, padding: "9px 14px", borderRadius: 10, border: `1px solid ${C.border}`, background: "#fff", color: C.ink, cursor: "pointer" }}>
+            <button onClick={() => window.print()} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, padding: "9px 14px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.surface, color: C.ink, cursor: "pointer" }}>
               <Printer size={15} /> Print
             </button>
           </div>
@@ -71,7 +71,7 @@ export default function Broadsheet({
       {!data || data.rows.length === 0 ? <Empty>No learners in this arm.</Empty>
         : data.subjects.length === 0 ? <Empty>No marks entered for {term} {session} yet.</Empty>
           : (
-            <div className="table-wrap" style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 14 }}>
+            <div className="table-wrap" style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14 }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: C.surface2 }}>
@@ -83,7 +83,7 @@ export default function Broadsheet({
                 </thead>
                 <tbody>
                   {data.rows.map((r, i) => (
-                    <tr key={r.learner_id} style={{ borderTop: `1px solid #EEF1F6` }}>
+                    <tr key={r.learner_id} style={{ borderTop: `1px solid ${C.border}` }}>
                       <td style={{ padding: "8px 10px", fontFamily: "ui-monospace, monospace", fontSize: 11, color: C.inkFaint }}>{i + 1}</td>
                       <td style={{ padding: "8px 10px" }}>
                         <Link href={`/learners/${r.learner_id}`} style={{ fontWeight: 600, color: C.ink, textDecoration: "none" }}>{r.name}</Link>
