@@ -11,7 +11,8 @@ const BANDS = [
   { min: 80, c: "#1FA97A" }, { min: 70, c: "#5BB04A" }, { min: 60, c: "#C9A227" },
   { min: 50, c: "#E08A1E" }, { min: 40, c: "#DB6334" }, { min: 0, c: "#D2353A" },
 ];
-const bandColor = (t: number) => BANDS.find((b) => t >= b.min)!.c;
+// Fall back to the lowest band so a stray NaN/blank total can never crash render.
+const bandColor = (t: number) => (BANDS.find((b) => t >= b.min) ?? BANDS[BANDS.length - 1]).c;
 // Current academic period — used when no prior selection is remembered.
 const DEFAULT_TERM = "Term 3";
 const DEFAULT_SESSION = "2025/2026";
@@ -115,7 +116,10 @@ export default function ScoreEntry({
   function saveNow() { if (timer.current) clearTimeout(timer.current); void flush(); }
 
   const set = (i: number, f: keyof typeof CAP, raw: string) => {
-    const v = raw === "" ? 0 : Number(raw);
+    const n = Number(raw);
+    // Treat blank / non-numeric input (e.g. "1e", a bad paste) as 0 so a NaN can
+    // never reach the grid — NaN slips past the cap check and crashes bandColor.
+    const v = raw === "" || !Number.isFinite(n) ? 0 : n;
     setRows((prev) => {
       const next = prev.map((row, j) => (j === i ? { ...row, [f]: v } : row));
       if (dKey) saveDraft(dKey, toDraft(next));   // mirror to device immediately
