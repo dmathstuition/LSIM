@@ -7,9 +7,14 @@ import {
   LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
 } from "recharts";
 import { Users, TrendingUp, Percent, CalendarCheck, FileCheck, AlertTriangle, Download, Moon, Sun, Clock, TrendingDown } from "lucide-react";
-import type { LearnerRow } from "@/lib/dashboard-queries";
+import type { LearnerRow, TrendPoint } from "@/lib/dashboard-queries";
 import type { OverdueFollowup } from "@/lib/intervention-queries";
 import { toCsv, downloadCsv } from "@/lib/csv";
+import { COMPONENT_LABELS, COMPONENT_ORDER, type ScoreComponent } from "@/lib/grading";
+
+const METRIC_TITLE: Record<ScoreComponent, string> = {
+  total: "Total", first_ca: "CA1 · 1st test", second_ca: "CA2 · 2nd test", exam: "Exam",
+};
 
 const THEMES = {
   light: { bg: "#EAEDF4", grid: "rgba(19,24,43,0.05)", surface: "#FFFFFF", surface2: "#F5F7FB", border: "#E1E5EF", ink: "#13182B", inkSoft: "#576074", inkFaint: "#8B92A4", brand: "#5B43F0" },
@@ -33,30 +38,43 @@ export default function Dashboard({
   classes: Opt[];
   selectedClass: string;
   onSelectClass: (v: string) => void;
-  scoreTrend: { term: string; avg: number }[];
+  scoreTrend: TrendPoint[];
   attTrend: { w: string; v: number }[];
   overdue?: OverdueFollowup[];
   teacherEmail?: string;
 }) {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [perfMode, setPerfMode] = useState<"top" | "bottom">("top");
+  const [metric, setMetric] = useState<ScoreComponent>("total");
   const t = THEMES[theme];
+
+  // Selected-component value for each learner (% of that component's max).
+  const val = (l: LearnerRow) => l.comp?.[metric] ?? 0;
 
   const k = useMemo(() => {
     const n = learners.length || 1;
     return {
       n: learners.length,
-      avg: learners.reduce((s, l) => s + l.avg, 0) / n,
+      avg: learners.reduce((s, l) => s + val(l), 0) / n,
       att: learners.reduce((s, l) => s + l.attendance, 0) / n,
       sub: (learners.reduce((s, l) => s + (ASSIGNMENTS_PER_TERM - l.missing), 0) / (n * ASSIGNMENTS_PER_TERM)) * 100,
       pass: (learners.filter((l) => l.avg >= 50).length / n) * 100,
       atRisk: learners.filter((l) => l.level === "High" || l.level === "Critical").length,
     };
+  }, [learners, metric]);
+
+  // Class-average % for each component (always all components, for the breakdown panel).
+  const breakdown = useMemo(() => {
+    const n = learners.length || 1;
+    return COMPONENT_ORDER.map((c) => ({
+      key: c, name: COMPONENT_LABELS[c],
+      value: Math.round(learners.reduce((s, l) => s + (l.comp?.[c] ?? 0), 0) / n),
+    }));
   }, [learners]);
 
-  const dist = useMemo(() => BANDS.map((b) => ({ name: b.name, color: b.color, value: learners.filter((l) => bandOf(l.avg).name === b.name).length })), [learners]);
+  const dist = useMemo(() => BANDS.map((b) => ({ name: b.name, color: b.color, value: learners.filter((l) => bandOf(val(l)).name === b.name).length })), [learners, metric]);
   const riskMix = useMemo(() => ["Low", "Medium", "High", "Critical"].map((lv) => ({ name: lv, color: RISK[lv], value: learners.filter((l) => l.level === lv).length })), [learners]);
-  const ranked = [...learners].sort((a, b) => b.avg - a.avg);
+  const ranked = [...learners].sort((a, b) => val(b) - val(a));
   const perfList = perfMode === "top" ? ranked.slice(0, 8) : ranked.slice(-8).reverse();
   const atRiskList = [...learners].filter((l) => l.level !== "Low").sort((a, b) => (b.level === "Critical" ? 1 : 0) - (a.level === "Critical" ? 1 : 0) || a.avg - b.avg);
 
@@ -64,7 +82,11 @@ export default function Dashboard({
     const label = classes.find((c) => c.id === selectedClass)?.label ?? "all-arms";
     const csv = toCsv(ranked, [
       { key: "adm", header: "Admission no." }, { key: "name", header: "Name" },
-      { key: "avg", header: "Average %" }, { key: "attendance", header: "Attendance %" },
+      { key: "ca1", header: "CA1 %", get: (l) => l.comp?.first_ca ?? 0 },
+      { key: "ca2", header: "CA2 %", get: (l) => l.comp?.second_ca ?? 0 },
+      { key: "exam", header: "Exam %", get: (l) => l.comp?.exam ?? 0 },
+      { key: "avg", header: "Total %" },
+      { key: "attendance", header: "Attendance %" },
       { key: "missing", header: "Missing work" }, { key: "level", header: "Risk" },
       { key: "declining", header: "Declining", get: (l) => (l.declining ? "Yes" : "") },
     ]);
@@ -143,7 +165,7 @@ export default function Dashboard({
           <>
             <section style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
               <Kpi icon={Users} label="Learners" value={k.n} />
-              <Kpi icon={TrendingUp} label="Class average" value={k.avg.toFixed(1)} suffix="%" />
+              <Kpi icon={TrendingUp} label={metric === "total" ? "Class average" : `${COMPONENT_LABELS[metric]} average`} value={k.avg.toFixed(1)} suffix="%" tone={bandOf(k.avg).color} />
               <Kpi icon={Percent} label="Pass rate" value={k.pass.toFixed(0)} suffix="%" tone={k.pass >= 60 ? RISK.Low : RISK.Medium} />
               <Kpi icon={CalendarCheck} label="Attendance" value={k.att.toFixed(0)} suffix="%" />
               <Kpi icon={FileCheck} label="Submission" value={k.sub.toFixed(0)} suffix="%" />
@@ -151,8 +173,33 @@ export default function Dashboard({
               <Kpi icon={Clock} label="Follow-ups due" value={overdue.length} tone={overdue.length > 0 ? RISK.Critical : RISK.Low} />
             </section>
 
+            <section style={{ marginBottom: 14 }}>
+              <Panel title="Component breakdown" sub="Class average per assessment component (% of its max). Pick one to drill the charts below."
+                right={
+                  <div style={{ display: "flex", gap: 4, background: t.surface2, padding: 3, borderRadius: 10, flexWrap: "wrap" }}>
+                    {COMPONENT_ORDER.map((c) => (
+                      <button key={c} onClick={() => setMetric(c)} style={{ fontSize: 12, fontWeight: 600, padding: "5px 11px", borderRadius: 8, cursor: "pointer", border: "none", background: metric === c ? t.surface : "transparent", color: metric === c ? t.brand : t.inkFaint }}>
+                        {COMPONENT_LABELS[c]}
+                      </button>
+                    ))}
+                  </div>
+                }>
+                <ResponsiveContainer width="100%" height={150}>
+                  <BarChart data={breakdown} layout="vertical" margin={{ top: 0, right: 28, left: 8, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={t.border} horizontal={false} />
+                    <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11, fill: t.inkFaint }} tickLine={false} axisLine={false} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fill: t.inkSoft }} tickLine={false} axisLine={{ stroke: t.border }} width={42} />
+                    <Tooltip content={<Tip />} cursor={{ fill: t.grid }} />
+                    <Bar dataKey="value" radius={[0, 5, 5, 0]} onClick={(d: any) => d?.key && setMetric(d.key)} cursor="pointer" label={{ position: "right", fontSize: 11, fill: t.inkSoft, formatter: (v: number) => `${v}%` }}>
+                      {breakdown.map((d, i) => <Cell key={i} fill={bandOf(d.value).color} fillOpacity={metric === d.key ? 1 : 0.55} stroke={metric === d.key ? t.ink : "none"} strokeWidth={metric === d.key ? 1 : 0} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </Panel>
+            </section>
+
             <section className="lay-2" style={{ marginBottom: 14 }}>
-              <Panel title="Performance distribution" sub="Learners per band">
+              <Panel title="Performance distribution" sub={`Learners per band · ${METRIC_TITLE[metric]}`}>
                 <ResponsiveContainer width="100%" height={216}>
                   <BarChart data={dist} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={t.border} vertical={false} />
@@ -181,7 +228,7 @@ export default function Dashboard({
             </section>
 
             <section className="lay-even" style={{ marginBottom: 14 }}>
-              <Panel title="Score trend" sub="Class average across terms">
+              <Panel title="Score trend" sub={`${METRIC_TITLE[metric]} average across terms`}>
                 {scoreTrend.length < 2 ? <NoData msg="Enter marks across more than one term to see a trend." /> : (
                   <ResponsiveContainer width="100%" height={200}>
                     <LineChart data={scoreTrend} margin={{ top: 6, right: 10, left: -20, bottom: 0 }}>
@@ -189,7 +236,7 @@ export default function Dashboard({
                       <XAxis dataKey="term" tick={{ fontSize: 11, fill: t.inkSoft }} tickLine={false} axisLine={{ stroke: t.border }} />
                       <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: t.inkFaint }} tickLine={false} axisLine={false} />
                       <Tooltip content={<Tip />} />
-                      <Line type="monotone" dataKey="avg" stroke={t.brand} strokeWidth={2.5} dot={{ r: 4, fill: t.brand }} />
+                      <Line type="monotone" dataKey={metric} name={METRIC_TITLE[metric]} stroke={t.brand} strokeWidth={2.5} dot={{ r: 4, fill: t.brand }} />
                     </LineChart>
                   </ResponsiveContainer>
                 )}
@@ -233,7 +280,7 @@ export default function Dashboard({
                   </table></div>
                 )}
               </Panel>
-              <Panel title="Performers" right={
+              <Panel title="Performers" sub={METRIC_TITLE[metric]} right={
                 <div style={{ display: "flex", gap: 4, background: t.surface2, padding: 3, borderRadius: 10 }}>
                   {(["top", "bottom"] as const).map((m) => (
                     <button key={m} onClick={() => setPerfMode(m)} style={{ fontSize: 12, fontWeight: 600, padding: "5px 11px", borderRadius: 8, cursor: "pointer", border: "none", background: perfMode === m ? t.surface : "transparent", color: perfMode === m ? t.ink : t.inkFaint }}>{m === "top" ? "Top" : "Bottom"}</button>
@@ -244,7 +291,7 @@ export default function Dashboard({
                   <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 11, padding: "9px 0", borderBottom: `1px solid ${t.border}` }}>
                     <span className="dm-num" style={{ width: 20, color: t.inkFaint, fontSize: 13 }}>{perfMode === "top" ? i + 1 : ranked.length - i}</span>
                     <Link href={`/learners/${l.id}`} style={{ flex: 1, fontSize: 13, fontWeight: 600, color: t.ink, textDecoration: "none" }}>{l.name}</Link>
-                    <span className="dm-num" style={{ fontWeight: 700, color: bandOf(l.avg).color }}>{l.avg}</span>
+                    <span className="dm-num" style={{ fontWeight: 700, color: bandOf(val(l)).color }}>{val(l)}</span>
                   </div>
                 ))}
               </Panel>

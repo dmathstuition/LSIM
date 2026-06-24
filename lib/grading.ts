@@ -7,6 +7,20 @@ export type RiskLevel = "Low" | "Medium" | "High" | "Critical";
 
 export const ASSIGNMENTS_PER_TERM = 8;
 
+/** Assessment components and their maximum marks (CA1 & CA2 /20, Exam /60, Total /100). */
+export const COMPONENT_CAPS = { total: 100, first_ca: 20, second_ca: 20, exam: 60 } as const;
+export type ScoreComponent = keyof typeof COMPONENT_CAPS;
+export const COMPONENT_LABELS: Record<ScoreComponent, string> = {
+  total: "Total", first_ca: "CA1", second_ca: "CA2", exam: "Exam",
+};
+/** Order for selectors/breakdown: the two tests, the exam, then the total. */
+export const COMPONENT_ORDER: ScoreComponent[] = ["first_ca", "second_ca", "exam", "total"];
+
+/** A raw component mark as a percentage of its maximum (0–100). */
+export function componentPct(component: ScoreComponent, value: number): number {
+  return (value / COMPONENT_CAPS[component]) * 100;
+}
+
 export const BANDS = [
   { name: "Outstanding", min: 80, color: "#1FA97A" },
   { name: "Very Good", min: 70, color: "#5BB04A" },
