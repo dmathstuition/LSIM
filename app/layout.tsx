@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import NavBar from "@/components/NavBar";
 import ThemeProvider from "@/components/ThemeProvider";
@@ -6,6 +6,11 @@ import ThemeProvider from "@/components/ThemeProvider";
 export const metadata: Metadata = {
   title: "dmaths · Learner Tracking",
   description: "Teacher accountability & learner progress tracking",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 // Set the theme before first paint to avoid a flash of the wrong theme.
