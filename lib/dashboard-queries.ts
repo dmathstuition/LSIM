@@ -1,8 +1,8 @@
 import { createClient } from "@/lib/supabase/client";
+import { computeKpis, isoWeek, type RiskLevel } from "@/lib/grading";
 const supabase = createClient();
 
-const ASSIGNMENTS_PER_TERM = 8;
-export type RiskLevel = "Low" | "Medium" | "High" | "Critical";
+export type { RiskLevel };
 export interface LearnerRow {
   id: string; adm: string; name: string;
   avg: number; attendance: number; missing: number; level: RiskLevel; declining: boolean;
@@ -31,13 +31,7 @@ export async function getLearners(classId?: string): Promise<LearnerRow[]> {
 }
 
 export function getKpis(rows: LearnerRow[]) {
-  const n = rows.length || 1;
-  const avg = rows.reduce((s, l) => s + l.avg, 0) / n;
-  const att = rows.reduce((s, l) => s + l.attendance, 0) / n;
-  const sub = (rows.reduce((s, l) => s + (ASSIGNMENTS_PER_TERM - l.missing), 0) / (n * ASSIGNMENTS_PER_TERM)) * 100;
-  const pass = (rows.filter((l) => l.avg >= 50).length / n) * 100;
-  const atRisk = rows.filter((l) => l.level === "High" || l.level === "Critical").length;
-  return { n: rows.length, avg, att, sub, pass, atRisk };
+  return computeKpis(rows);
 }
 
 export async function getScoreTrend(classId?: string) {
@@ -64,12 +58,4 @@ export async function getAttendanceTrend(classId?: string) {
   }
   return Object.entries(byWeek).map(([w, b]) => ({ w, v: Math.round((b.present / b.total) * 100) }))
     .sort((a, b) => a.w.localeCompare(b.w));
-}
-
-function isoWeek(d: Date): string {
-  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  const day = date.getUTCDay() || 7; date.setUTCDate(date.getUTCDate() + 4 - day);
-  const ys = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-  const wk = Math.ceil((((date.getTime() - ys.getTime()) / 86400000) + 1) / 7);
-  return `W${String(wk).padStart(2, "0")}`;
 }

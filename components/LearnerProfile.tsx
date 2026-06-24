@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import Link from "next/link";
 import { Printer, ArrowLeft, User, CalendarCheck, FileCheck, HeartPulse } from "lucide-react";
 import { C, card, Wrap, Chip, RISK, bandColor } from "@/components/ui";
+import AttendanceCalendar from "@/components/AttendanceCalendar";
 import type { LearnerProfileData } from "@/lib/learner-queries";
 
 const ATT_COLOR: Record<string, string> = { Present: C.good, Late: C.warn, Absent: C.bad };
@@ -11,6 +12,7 @@ const ATT_COLOR: Record<string, string> = { Present: C.good, Late: C.warn, Absen
 export default function LearnerProfile({ data }: { data: LearnerProfileData }) {
   const { learner, risk, scores, attendance, submissions, interventions } = data;
   const missing = submissions.filter((s) => s.status === "Not Submitted").length;
+  const attMap = useMemo(() => new Map(attendance.all.map((a) => [a.date, a.status])), [attendance.all]);
 
   return (
     <Wrap>
@@ -86,15 +88,7 @@ export default function LearnerProfile({ data }: { data: LearnerProfileData }) {
                   </span>
                 ))}
               </div>
-              <div style={{ fontSize: 11, color: C.inkFaint, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>Recent</div>
-              <div style={{ display: "grid", gap: 4 }}>
-                {attendance.recent.map((a, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                    <span style={{ fontFamily: "ui-monospace, monospace", color: C.inkSoft }}>{a.date}</span>
-                    <Chip label={a.status} color={ATT_COLOR[a.status] ?? C.inkFaint} />
-                  </div>
-                ))}
-              </div>
+              <AttendanceCalendar byDate={attMap} />
             </>
           )}
         </div>

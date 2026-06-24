@@ -8,8 +8,9 @@ assignments, interventions — plus printable reports and a supervisor role.
 ## 1. Supabase
 1. Create a project at supabase.com.
 2. SQL Editor → run, in order: `supabase/schema.sql`, `migration_arms.sql`,
-   `migration_setup.sql`, `migration_laims.sql` (supervisor role), then
-   `migration_trend.sql` (adds the declining-trend early-warning signal).
+   `migration_setup.sql`, `migration_laims.sql` (supervisor role),
+   `migration_trend.sql` (declining-trend early-warning signal), and
+   `migration_subjects.sql` (lets you rename/delete subjects).
 3. Storage → create a **private** bucket named `evidence`, then run
    `migration_evidence_storage.sql` (own-files read/write/delete policies for
    the Weekly tracker uploads).
@@ -37,6 +38,15 @@ duplicated in the front end.
 Push to GitHub → import in Vercel → add the same two env vars → deploy.
 Supabase needs no separate hosting.
 
+## Tests & CI
+The SQL-derived rules (grading bands, performance category, risk scoring, KPI
+math) are mirrored once in `lib/grading.ts` and covered by Vitest:
+```bash
+npm test
+```
+`.github/workflows/ci.yml` runs `npm test` + `npm run build` on every PR (with
+placeholder Supabase env vars so the static prerender passes).
+
 ## Screens
 | Route | What it does |
 |-------|--------------|
@@ -50,7 +60,12 @@ Supabase needs no separate hosting.
 | `/reports` | Class broadsheet (every learner × subject, per term/session) — print or export CSV. |
 | `/oversight` | Supervisor/admin only — cross-teacher rollup of learners, averages, risk and open interventions. |
 | `/classes` | Create arms and add learners (single or CSV import); delete arms/learners. |
+| `/subjects` | Manage the shared subject list — add, rename, delete (delete is blocked while scores reference it). |
 | `/settings` | Edit your name/department and change password. |
+
+A **global search** (icon in the nav, or ⌘/Ctrl-K) finds any learner by name or
+admission number and jumps to their profile. Learner profiles include a **month
+attendance calendar**, and `/attendance` has a per-arm **month overview** heatmap.
 
 Attendance and assignment data feed the dashboard's attendance %, submission %
 and early-warning risk score — all derived in SQL views, never duplicated in the

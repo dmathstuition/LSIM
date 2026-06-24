@@ -6,9 +6,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { getRole, isSupervisor } from "@/lib/role";
 import { useMediaQuery } from "@/lib/use-media-query";
+import LearnerSearch from "@/components/LearnerSearch";
 import {
   LayoutDashboard, ClipboardList, Users, CalendarCheck, ClipboardCheck,
-  HeartPulse, FileText, Shield, LogOut, Menu, X, CalendarRange, Settings,
+  HeartPulse, FileText, Shield, LogOut, Menu, X, CalendarRange, Settings, BookMarked,
 } from "lucide-react";
 
 const LINKS = [
@@ -20,6 +21,7 @@ const LINKS = [
   { href: "/interventions", label: "Interventions", icon: HeartPulse },
   { href: "/reports", label: "Reports", icon: FileText },
   { href: "/classes", label: "Classes", icon: Users },
+  { href: "/subjects", label: "Subjects", icon: BookMarked },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -97,6 +99,7 @@ export default function NavBar() {
                   <X size={20} />
                 </button>
               </div>
+              <div style={{ marginBottom: 8 }}><LearnerSearch block /></div>
               {links.map(({ href, label, icon: Icon }) => (
                 <Link key={href} href={href} className="nav-link" style={linkStyle(!!isActive(href), true)}>
                   <Icon size={18} /> {label}
@@ -121,9 +124,12 @@ export default function NavBar() {
           <Icon size={16} /> {label}
         </Link>
       ))}
-      <button onClick={signOut} className="btn-press" style={{ ...signOutBtn, marginLeft: "auto" }}>
-        <LogOut size={15} /> Sign out
-      </button>
+      <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+        <LearnerSearch />
+        <button onClick={signOut} className="btn-press" style={signOutBtn}>
+          <LogOut size={15} /> Sign out
+        </button>
+      </div>
     </nav>
   );
 }

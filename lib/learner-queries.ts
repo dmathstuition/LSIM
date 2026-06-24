@@ -27,7 +27,7 @@ export interface LearnerProfileData {
   };
   risk: { avg: number; attendance: number; missing: number; level: string };
   scores: ScoreLine[];
-  attendance: { present: number; absent: number; late: number; total: number; pct: number; recent: AttRecent[] };
+  attendance: { present: number; absent: number; late: number; total: number; pct: number; recent: AttRecent[]; all: AttRecent[] };
   submissions: SubLine[];
   interventions: InterventionRow[];
 }
@@ -94,8 +94,28 @@ export async function getLearnerProfile(id: string): Promise<LearnerProfileData>
       missing: riskRes.data?.missing_assignments ?? 0, level: riskRes.data?.risk_level ?? "Low",
     },
     scores,
-    attendance: { present, absent, late, total, pct: total ? Math.round((present / total) * 100) : 0, recent: att.slice(0, 10) },
+    attendance: { present, absent, late, total, pct: total ? Math.round((present / total) * 100) : 0, recent: att.slice(0, 10), all: att },
     submissions,
     interventions,
   };
+}
+
+export interface LearnerSearchResult { id: string; fullname: string; admission_number: string; class_label: string; }
+
+/** Search the teacher's learners by name or admission number (RLS-scoped). */
+export async function searchLearners(query: string): Promise<LearnerSearchResult[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
+  const safe = q.replace(/[%,]/g, " ");
+  const { data, error } = await supabase
+    .from("learners")
+    .select("id, fullname, admission_number, classes(grade_level, arm)")
+    .or(`fullname.ilike.%${safe}%,admission_number.ilike.%${safe}%`)
+    .order("fullname")
+    .limit(8);
+  if (error) throw error;
+  return (data ?? []).map((l: any) => ({
+    id: l.id, fullname: l.fullname, admission_number: l.admission_number,
+    class_label: `${l.classes?.grade_level ?? ""} ${l.classes?.arm ?? ""}`.trim(),
+  }));
 }

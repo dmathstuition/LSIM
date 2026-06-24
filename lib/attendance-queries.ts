@@ -48,3 +48,24 @@ export async function saveAttendance(rows: AttRow[], date: string) {
     .upsert(payload, { onConflict: "learner_id,date" });
   if (error) throw error;
 }
+
+/** Per-date attendance rollup for one arm between two ISO dates (inclusive). */
+export async function getClassAttendanceSummary(
+  classId: string, fromISO: string, toISO: string
+): Promise<Map<string, { present: number; total: number }>> {
+  const { data, error } = await supabase
+    .from("attendance")
+    .select("date, status, learners!inner(class_id)")
+    .eq("learners.class_id", classId)
+    .gte("date", fromISO)
+    .lte("date", toISO);
+  if (error) throw error;
+  const map = new Map<string, { present: number; total: number }>();
+  for (const r of data ?? []) {
+    const b = map.get(r.date) ?? { present: 0, total: 0 };
+    b.total += 1;
+    if (r.status === "Present") b.present += 1;
+    map.set(r.date, b);
+  }
+  return map;
+}
