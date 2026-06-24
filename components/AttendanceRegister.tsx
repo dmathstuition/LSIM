@@ -2,9 +2,9 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Save, Check, AlertCircle } from "lucide-react";
+import { Save, Check, AlertCircle, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import { C, Wrap, PageHead, Empty, Sel, type Opt } from "@/components/ui";
-import type { AttRow, AttStatus } from "@/lib/attendance-queries";
+import { getClassAttendanceSummary, type AttRow, type AttStatus } from "@/lib/attendance-queries";
 
 const STATUSES: { key: AttStatus; color: string }[] = [
   { key: "Present", color: C.good }, { key: "Late", color: C.warn }, { key: "Absent", color: C.bad },
@@ -125,6 +125,69 @@ export default function AttendanceRegister({
               ))}
             </div>
           )}
+
+      {arm && <MonthOverview classId={arm} />}
     </Wrap>
   );
 }
+
+const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function MonthOverview({ classId }: { classId: string }) {
+  const [open, setOpen] = useState(false);
+  const [{ y, m }, setYm] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
+  const [data, setData] = useState<Map<string, { present: number; total: number }>>(new Map());
+
+  useEffect(() => {
+    if (!open) return;
+    const from = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+    const to = `${y}-${String(m + 1).padStart(2, "0")}-${String(new Date(y, m + 1, 0).getDate()).padStart(2, "0")}`;
+    getClassAttendanceSummary(classId, from, to).then(setData).catch(() => setData(new Map()));
+  }, [open, classId, y, m]);
+
+  const first = new Date(y, m, 1);
+  const lead = (first.getDay() + 6) % 7;
+  const days = new Date(y, m + 1, 0).getDate();
+  const cells: (number | null)[] = [...Array(lead).fill(null), ...Array.from({ length: days }, (_, i) => i + 1)];
+  const label = first.toLocaleString("en", { month: "long", year: "numeric" });
+  const iso = (d: number) => `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  const shift = (delta: number) => setYm(({ y, m }) => { const d = new Date(y, m + delta, 1); return { y: d.getFullYear(), m: d.getMonth() }; });
+
+  return (
+    <div className="no-print" style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 14, marginTop: 14, overflow: "hidden" }}>
+      <button onClick={() => setOpen((o) => !o)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "12px 14px", border: "none", background: "transparent", cursor: "pointer", color: C.ink, fontWeight: 600, fontSize: 14 }}>
+        <CalendarDays size={16} color={C.brand} /> Month overview {open ? "▾" : "▸"}
+      </button>
+      {open && (
+        <div style={{ padding: "0 14px 16px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <button className="icon-btn" onClick={() => shift(-1)} aria-label="Previous month" style={navBtn}><ChevronLeft size={16} /></button>
+            <span style={{ fontSize: 13, fontWeight: 700 }}>{label}</span>
+            <button className="icon-btn" onClick={() => shift(1)} aria-label="Next month" style={navBtn}><ChevronRight size={16} /></button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+            {DOW.map((d) => <div key={d} style={{ fontSize: 10, fontWeight: 600, textAlign: "center", color: C.inkFaint }}>{d}</div>)}
+            {cells.map((d, i) => {
+              if (d === null) return <div key={`e${i}`} />;
+              const b = data.get(iso(d));
+              const pct = b && b.total ? Math.round((b.present / b.total) * 100) : null;
+              const bg = pct === null ? "#fff" : `rgba(31,169,122,${0.12 + (pct / 100) * 0.55})`;
+              return (
+                <div key={d} title={pct === null ? iso(d) : `${iso(d)} · ${pct}% present`}
+                  style={{ aspectRatio: "1 / 1", display: "grid", placeItems: "center", borderRadius: 8, fontSize: 11, fontFamily: "ui-monospace, monospace",
+                    border: `1px solid ${C.border}`, background: bg, color: pct !== null && pct < 40 ? C.bad : C.inkSoft }}>
+                  <div style={{ textAlign: "center", lineHeight: 1.1 }}>
+                    <div>{d}</div>
+                    {pct !== null && <div style={{ fontSize: 9, fontWeight: 700 }}>{pct}%</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const navBtn: React.CSSProperties = { display: "inline-flex", padding: 5, border: `1px solid ${C.border}`, borderRadius: 8, background: "#fff", color: C.inkSoft, cursor: "pointer" };

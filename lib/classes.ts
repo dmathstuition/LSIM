@@ -48,6 +48,25 @@ export async function getSubjects(): Promise<SubjectRow[]> {
   return data ?? [];
 }
 
+export async function createSubject(subject_name: string) {
+  const { error } = await supabase.from("subjects").insert({ subject_name });
+  if (error) throw error;
+}
+
+export async function renameSubject(id: string, subject_name: string) {
+  const { error } = await supabase.from("subjects").update({ subject_name }).eq("id", id);
+  if (error) throw error;
+}
+
+/** Delete a subject. Fails (FK restrict) if any scores still reference it. */
+export async function deleteSubject(id: string) {
+  const { error } = await supabase.from("subjects").delete().eq("id", id);
+  if (error) {
+    if (error.code === "23503") throw new Error("This subject still has scores — reassign or remove them first.");
+    throw error;
+  }
+}
+
 export async function getLearnersBasic(classId: string): Promise<LearnerBasic[]> {
   const { data, error } = await supabase.from("learners")
     .select("id, admission_number, fullname, gender").eq("class_id", classId).order("fullname");
