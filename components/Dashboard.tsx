@@ -6,11 +6,12 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
 } from "recharts";
-import { Users, TrendingUp, Percent, CalendarCheck, FileCheck, AlertTriangle, Download, Moon, Sun, Clock, TrendingDown } from "lucide-react";
+import { Users, TrendingUp, Percent, CalendarCheck, FileCheck, AlertTriangle, Download, Clock, TrendingDown } from "lucide-react";
 import type { LearnerRow, TrendPoint } from "@/lib/dashboard-queries";
 import type { OverdueFollowup } from "@/lib/intervention-queries";
 import { toCsv, downloadCsv } from "@/lib/csv";
 import { COMPONENT_LABELS, COMPONENT_ORDER, type ScoreComponent } from "@/lib/grading";
+import { useTheme } from "@/components/ThemeProvider";
 
 const METRIC_TITLE: Record<ScoreComponent, string> = {
   total: "Total", first_ca: "CA1 · 1st test", second_ca: "CA2 · 2nd test", exam: "Exam",
@@ -43,7 +44,7 @@ export default function Dashboard({
   overdue?: OverdueFollowup[];
   teacherEmail?: string;
 }) {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const { theme } = useTheme();
   const [perfMode, setPerfMode] = useState<"top" | "bottom">("top");
   const [metric, setMetric] = useState<ScoreComponent>("total");
   const t = THEMES[theme];
@@ -146,9 +147,6 @@ export default function Dashboard({
               <option value="all">All arms</option>
               {classes.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
-            <button onClick={() => setTheme(theme === "light" ? "dark" : "light")} style={{ padding: "8px 12px", borderRadius: 10, border: `1px solid ${t.border}`, background: t.surface, color: t.ink, cursor: "pointer" }}>
-              {theme === "light" ? <Moon size={15} /> : <Sun size={15} />}
-            </button>
             <button onClick={exportCsv} disabled={learners.length === 0} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, padding: "8px 13px", borderRadius: 10, border: `1px solid ${t.border}`, background: t.surface, color: t.ink, cursor: learners.length === 0 ? "not-allowed" : "pointer", opacity: learners.length === 0 ? 0.5 : 1 }}>
               <Download size={15} /> Export CSV
             </button>

@@ -108,7 +108,7 @@ export default function Assignments({
             {list.map((a) => (
               <button key={a.id} onClick={() => setSelected(a.id)}
                 style={{ textAlign: "left", padding: "9px 11px", borderRadius: 9, cursor: "pointer", border: `1px solid ${C.border}`,
-                  background: selected === a.id ? C.brandSoft : "#fff", color: selected === a.id ? C.brand : C.inkSoft }}>
+                  background: selected === a.id ? C.brandSoft : C.surface, color: selected === a.id ? C.brand : C.inkSoft }}>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{a.title}</div>
                 {a.due_date && <div style={{ fontSize: 11, color: C.inkFaint, fontFamily: "ui-monospace, monospace" }}>due {a.due_date}</div>}
               </button>
@@ -144,9 +144,9 @@ export default function Assignments({
                       </span>
                     ))}
                   </div>
-                  <div style={{ border: `1px solid #EEF1F6`, borderRadius: 10, overflow: "hidden" }}>
+                  <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
                     {rows.map((r, i) => (
-                      <div key={r.learner_id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderBottom: i < rows.length - 1 ? `1px solid #F2F4F8` : "none" }}>
+                      <div key={r.learner_id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderBottom: i < rows.length - 1 ? `1px solid ${C.border}` : "none" }}>
                         <span style={{ flex: 1 }}>
                           <Link href={`/learners/${r.learner_id}`} style={{ fontSize: 13, fontWeight: 600, color: C.ink, textDecoration: "none" }}>{r.name}</Link>
                         </span>

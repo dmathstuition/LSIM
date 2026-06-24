@@ -76,12 +76,12 @@ export default function AttendanceRegister({
         <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: ".05em", textTransform: "uppercase", color: C.inkFaint }}>Date</span>
           <input type="date" value={date} max={today} onChange={(e) => setDate(e.target.value)}
-            style={{ padding: "9px 11px", borderRadius: 10, border: `1px solid ${C.border}`, fontSize: 13, fontWeight: 600, background: "#fff", color: C.ink }} />
+            style={{ padding: "9px 11px", borderRadius: 10, border: `1px solid ${C.border}`, fontSize: 13, fontWeight: 600, background: C.surface, color: C.ink }} />
         </label>
         <div style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
           {STATUSES.map((s) => (
             <button key={s.key} onClick={() => markAll(s.key)}
-              style={{ fontSize: 12, fontWeight: 600, padding: "8px 11px", borderRadius: 9, border: `1px solid ${C.border}`, background: "#fff", color: s.color, cursor: "pointer" }}>
+              style={{ fontSize: 12, fontWeight: 600, padding: "8px 11px", borderRadius: 9, border: `1px solid ${C.border}`, background: C.surface, color: s.color, cursor: "pointer" }}>
               All {s.key}
             </button>
           ))}
@@ -104,9 +104,9 @@ export default function AttendanceRegister({
       {status === "loading" ? <Empty>Loading learners…</Empty>
         : rows.length === 0 ? <Empty>No learners in this arm yet. Add them under Classes &amp; learners.</Empty>
           : (
-            <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden" }}>
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden" }}>
               {rows.map((r, i) => (
-                <div key={r.learner_id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", borderBottom: i < rows.length - 1 ? `1px solid #EEF1F6` : "none" }}>
+                <div key={r.learner_id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", borderBottom: i < rows.length - 1 ? `1px solid ${C.border}` : "none" }}>
                   <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 11, color: C.inkFaint, width: 22 }}>{i + 1}</span>
                   <div style={{ flex: 1 }}>
                     <Link href={`/learners/${r.learner_id}`} style={{ fontWeight: 600, fontSize: 14, color: C.ink, textDecoration: "none" }}>{r.name}</Link>
@@ -154,7 +154,7 @@ function MonthOverview({ classId }: { classId: string }) {
   const shift = (delta: number) => setYm(({ y, m }) => { const d = new Date(y, m + delta, 1); return { y: d.getFullYear(), m: d.getMonth() }; });
 
   return (
-    <div className="no-print" style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 14, marginTop: 14, overflow: "hidden" }}>
+    <div className="no-print" style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, marginTop: 14, overflow: "hidden" }}>
       <button onClick={() => setOpen((o) => !o)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "12px 14px", border: "none", background: "transparent", cursor: "pointer", color: C.ink, fontWeight: 600, fontSize: 14 }}>
         <CalendarDays size={16} color={C.brand} /> Month overview {open ? "▾" : "▸"}
       </button>
@@ -171,7 +171,7 @@ function MonthOverview({ classId }: { classId: string }) {
               if (d === null) return <div key={`e${i}`} />;
               const b = data.get(iso(d));
               const pct = b && b.total ? Math.round((b.present / b.total) * 100) : null;
-              const bg = pct === null ? "#fff" : `rgba(31,169,122,${0.12 + (pct / 100) * 0.55})`;
+              const bg = pct === null ? C.surface : `rgba(31,169,122,${0.12 + (pct / 100) * 0.55})`;
               return (
                 <div key={d} title={pct === null ? iso(d) : `${iso(d)} · ${pct}% present`}
                   style={{ aspectRatio: "1 / 1", display: "grid", placeItems: "center", borderRadius: 8, fontSize: 11, fontFamily: "ui-monospace, monospace",
@@ -190,4 +190,4 @@ function MonthOverview({ classId }: { classId: string }) {
   );
 }
 
-const navBtn: React.CSSProperties = { display: "inline-flex", padding: 5, border: `1px solid ${C.border}`, borderRadius: 8, background: "#fff", color: C.inkSoft, cursor: "pointer" };
+const navBtn: React.CSSProperties = { display: "inline-flex", padding: 5, border: `1px solid ${C.border}`, borderRadius: 8, background: C.surface, color: C.inkSoft, cursor: "pointer" };

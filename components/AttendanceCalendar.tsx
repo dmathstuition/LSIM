@@ -43,7 +43,7 @@ export default function AttendanceCalendar({ byDate }: { byDate: Map<string, str
             <div key={day} title={st ? `${iso(day)} · ${st}` : iso(day)}
               style={{ aspectRatio: "1 / 1", display: "grid", placeItems: "center", borderRadius: 8, fontSize: 12,
                 fontFamily: "ui-monospace, monospace", border: `1px solid ${C.border}`,
-                background: color ? color + "22" : "#fff", color: color ?? C.inkFaint, fontWeight: color ? 700 : 400 }}>
+                background: color ? `color-mix(in srgb, ${color} 15%, transparent)` : C.surface, color: color ?? C.inkFaint, fontWeight: color ? 700 : 400 }}>
               {day}
             </div>
           );
@@ -60,4 +60,4 @@ export default function AttendanceCalendar({ byDate }: { byDate: Map<string, str
   );
 }
 
-const navBtn: React.CSSProperties = { display: "inline-flex", padding: 5, border: `1px solid ${C.border}`, borderRadius: 8, background: "#fff", color: C.inkSoft, cursor: "pointer" };
+const navBtn: React.CSSProperties = { display: "inline-flex", padding: 5, border: `1px solid ${C.border}`, borderRadius: 8, background: C.surface, color: C.inkSoft, cursor: "pointer" };

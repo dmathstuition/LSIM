@@ -134,7 +134,7 @@ function WeekCard({ entry }: { entry: WeeklyEntry }) {
       </div>
 
       {/* evidence */}
-      <div style={{ marginTop: 14, borderTop: `1px solid #EEF1F6`, paddingTop: 12 }}>
+      <div style={{ marginTop: 14, borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: C.inkFaint, textTransform: "uppercase", letterSpacing: ".05em", display: "inline-flex", alignItems: "center", gap: 6 }}>
             <Paperclip size={13} /> Evidence ({files.length})

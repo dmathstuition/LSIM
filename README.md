@@ -67,6 +67,11 @@ A **global search** (icon in the nav, or ⌘/Ctrl-K) finds any learner by name o
 admission number and jumps to their profile. Learner profiles include a **month
 attendance calendar**, and `/attendance` has a per-arm **month overview** heatmap.
 
+**Dark mode** is app-wide: toggle it from the nav (☾/☀). The choice persists in
+`localStorage` and is applied before first paint (no flash); the theme is driven
+by CSS variables in `app/globals.css`, so every screen follows it. Reports always
+print on a light sheet regardless of the active theme.
+
 Attendance and assignment data feed the dashboard's attendance %, submission %
 and early-warning risk score — all derived in SQL views, never duplicated in the
 front end.

@@ -2,6 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---------- Design tokens (themeable) ----------
+   The whole app reads these via the `C` palette in components/ui.tsx and via
+   var(--*) directly. Dark mode flips them by setting data-theme="dark" on <html>
+   (see components/ThemeProvider.tsx). */
+:root {
+  --bg: #EAEDF4;
+  --grid: rgba(19, 24, 43, 0.05);
+  --surface: #FFFFFF;
+  --surface2: #F5F7FB;
+  --border: #E1E5EF;
+  --ink: #13182B;
+  --ink-soft: #576074;
+  --ink-faint: #8B92A4;
+  --brand: #5B43F0;
+  --brand-soft: #ECE9FF;
+  --good: #1FA97A;
+  --warn: #C9A227;
+  --bad: #D2353A;
+  --hover: #F1F3F8;
+  --card-shadow: 0 1px 2px rgba(19, 24, 43, 0.05), 0 1px 3px rgba(19, 24, 43, 0.04);
+}
+:root[data-theme="dark"] {
+  --bg: #0B0E18;
+  --grid: rgba(255, 255, 255, 0.04);
+  --surface: #141826;
+  --surface2: #1A1F30;
+  --border: #272D40;
+  --ink: #EDEFF5;
+  --ink-soft: #9BA2B6;
+  --ink-faint: #6B7288;
+  --brand: #8B78FF;
+  --brand-soft: #241E48;
+  --good: #2BB888;
+  --warn: #D4B43A;
+  --bad: #E0555A;
+  --hover: #1E2436;
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
 *, *::before, *::after { box-sizing: border-box; }
 html, body { padding: 0; margin: 0; }
 body {
@@ -9,6 +48,8 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   font-family: system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
 }
 img, svg { max-width: 100%; }
 
@@ -31,16 +72,16 @@ img, svg { max-width: 100%; }
 @media (max-width: 600px) { .page-pad { padding: 16px 14px 48px; } }
 
 /* Polish: subtle depth + interaction feedback (impossible with inline styles). */
-.card { box-shadow: 0 1px 2px rgba(19, 24, 43, 0.05), 0 1px 3px rgba(19, 24, 43, 0.04); }
+.card { box-shadow: var(--card-shadow); }
 .row-hover { transition: background .12s ease; }
-.row-hover:hover { background: #F7F8FB; }
+.row-hover:hover { background: var(--hover); }
 .btn-press { transition: transform .06s ease, filter .12s ease; }
 .btn-press:active { transform: translateY(1px); }
 .btn-press:hover { filter: brightness(1.04); }
 .icon-btn { transition: background .12s ease, color .12s ease; }
-.icon-btn:hover { background: #F1F3F8; color: #13182B; }
+.icon-btn:hover { background: var(--hover); color: var(--ink); }
 .nav-link { transition: background .12s ease, color .12s ease; }
-.nav-link:hover { background: #F1F3F8; }
+.nav-link:hover { background: var(--hover); }
 
 .h-page { font-size: 20px; font-weight: 700; }
 @media (max-width: 600px) { .h-page { font-size: 18px; } }
@@ -49,6 +90,12 @@ img, svg { max-width: 100%; }
 .print-only { display: none; }
 
 @media print {
+  /* Always print on a light sheet, even when dark mode is active. */
+  :root, :root[data-theme="dark"] {
+    --bg: #FFFFFF; --grid: rgba(19,24,43,0.05); --surface: #FFFFFF; --surface2: #F5F7FB;
+    --border: #E1E5EF; --ink: #13182B; --ink-soft: #576074; --ink-faint: #8B92A4;
+    --brand: #5B43F0; --brand-soft: #ECE9FF; --hover: #F1F3F8; --card-shadow: none;
+  }
   /* Hide app chrome and on-screen-only controls. */
   nav, .no-print { display: none !important; }
   .print-only { display: block !important; }

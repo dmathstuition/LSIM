@@ -20,7 +20,7 @@ export default function LearnerProfile({ data }: { data: LearnerProfileData }) {
         <Link href="/dashboard" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: C.inkSoft, textDecoration: "none" }}>
           <ArrowLeft size={15} /> Back
         </Link>
-        <button onClick={() => window.print()} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, padding: "9px 14px", borderRadius: 10, border: `1px solid ${C.border}`, background: "#fff", color: C.ink, cursor: "pointer" }}>
+        <button onClick={() => window.print()} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, padding: "9px 14px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.surface, color: C.ink, cursor: "pointer" }}>
           <Printer size={15} /> Print report
         </button>
       </div>
@@ -59,7 +59,7 @@ export default function LearnerProfile({ data }: { data: LearnerProfileData }) {
               ))}</tr></thead>
               <tbody>
                 {scores.map((s, i) => (
-                  <tr key={i} style={{ borderTop: `1px solid #EEF1F6` }}>
+                  <tr key={i} style={{ borderTop: `1px solid ${C.border}` }}>
                     <td style={{ padding: "7px 6px", fontWeight: 600 }}>{s.subject_name}</td>
                     <td style={{ padding: "7px 6px", color: C.inkSoft }}>{s.term}</td>
                     <td style={{ padding: "7px 6px", textAlign: "center", fontFamily: "ui-monospace, monospace" }}>{s.first_ca}</td>
@@ -115,7 +115,7 @@ export default function LearnerProfile({ data }: { data: LearnerProfileData }) {
           {interventions.length === 0 ? <Muted>No interventions logged.</Muted> : (
             <div style={{ display: "grid", gap: 10 }}>
               {interventions.map((it) => (
-                <div key={it.id} style={{ border: `1px solid #EEF1F6`, borderRadius: 10, padding: 11 }}>
+                <div key={it.id} style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: 11 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                     <span style={{ fontWeight: 600, fontSize: 13 }}>{it.issue}</span>
                     <span style={{ fontSize: 11, color: C.inkFaint, fontFamily: "ui-monospace, monospace", whiteSpace: "nowrap" }}>{it.date_identified}</span>

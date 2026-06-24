@@ -33,7 +33,7 @@ export default function Oversight({ data }: { data: OversightSummary }) {
               ))}</tr></thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.class_id} style={{ borderTop: `1px solid #EEF1F6` }}>
+                  <tr key={r.class_id} style={{ borderTop: `1px solid ${C.border}` }}>
                     <td style={{ padding: "9px 8px", fontWeight: 700 }}>{r.class_label}</td>
                     <td style={{ padding: "9px 8px", color: C.inkSoft }}>{r.teacher_name}</td>
                     <td style={{ padding: "9px 8px", textAlign: "right", fontFamily: "ui-monospace, monospace" }}>{r.learners}</td>
