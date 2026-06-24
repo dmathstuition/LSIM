@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Save, Check, AlertCircle } from "lucide-react";
+import { Save, Check, AlertCircle, Cloud, CloudOff, Loader2 } from "lucide-react";
+import { draftKey, loadDraft, saveDraft, clearDraft, loadSelection, saveSelection } from "@/lib/draft";
 
 const CAP = { first_ca: 20, second_ca: 20, exam: 60 };
 const TOTAL_MAX = CAP.first_ca + CAP.second_ca + CAP.exam;
@@ -11,6 +12,9 @@ const BANDS = [
   { min: 50, c: "#E08A1E" }, { min: 40, c: "#DB6334" }, { min: 0, c: "#D2353A" },
 ];
 const bandColor = (t: number) => BANDS.find((b) => t >= b.min)!.c;
+// Current academic period — used when no prior selection is remembered.
+const DEFAULT_TERM = "Term 3";
+const DEFAULT_SESSION = "2025/2026";
 
 export interface Row { learner_id: string; adm: string; name: string; first_ca: number; second_ca: number; exam: number; }
 export interface Opt { id: string; label: string; }
@@ -23,45 +27,121 @@ export default function ScoreEntry({
   loadRows: (classId: string, subjectId: string, term: string, session: string) => Promise<Row[]>;
   onSave: (rows: Row[], m: { classId: string; subjectId: string; term: string; session: string }) => Promise<void>;
 }) {
-  const [arm, setArm] = useState(arms[0]?.id ?? "");
-  const [subject, setSubject] = useState(subjects[0]?.id ?? "");
-  const [term, setTerm] = useState("Term 2");
-  const [session, setSession] = useState("2024/2025");
+  const [arm, setArm] = useState("");
+  const [subject, setSubject] = useState("");
+  const [term, setTerm] = useState(DEFAULT_TERM);
+  const [session, setSession] = useState(DEFAULT_SESSION);
   const [rows, setRows] = useState<Row[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "saving" | "saved" | "error">("idle");
   const [msg, setMsg] = useState("");
+  const [dirty, setDirty] = useState(false);       // edits not yet persisted to the DB
+  const [savedAt, setSavedAt] = useState("");       // time of last successful save
+  const [restored, setRestored] = useState(false);  // a local draft was restored
 
-  useEffect(() => { setArm(arms[0]?.id ?? ""); }, [arms]);
-  useEffect(() => { setSubject(subjects[0]?.id ?? ""); }, [subjects]);
-
+  // Last-used selection (from localStorage), applied once the option lists load
+  // so a refresh returns to the same Arm/Subject/Term/Session instead of resetting.
+  const savedSel = useRef(typeof window !== "undefined" ? loadSelection() : null);
   useEffect(() => {
-    if (!arm || !subject) { setRows([]); return; }
-    let live = true;
-    setStatus("loading");
-    loadRows(arm, subject, term, session)
-      .then((r) => { if (live) { setRows(r); setStatus("idle"); } })
-      .catch((e) => { if (live) { setStatus("error"); setMsg(e.message); } });
-    return () => { live = false; };
-  }, [arm, subject, term, session]);
+    const s = savedSel.current;
+    if (s?.term) setTerm(s.term);
+    if (s?.session) setSession(s.session);
+  }, []);
+  useEffect(() => {
+    if (!arms.length) return;
+    const saved = savedSel.current?.arm;
+    setArm(saved && arms.some((a) => a.id === saved) ? saved : arms[0].id);
+  }, [arms]);
+  useEffect(() => {
+    if (!subjects.length) return;
+    const saved = savedSel.current?.subject;
+    setSubject(saved && subjects.some((s) => s.id === saved) ? saved : subjects[0].id);
+  }, [subjects]);
+  useEffect(() => { if (arm && subject) saveSelection({ arm, subject, term, session }); }, [arm, subject, term, session]);
 
-  const set = (i: number, f: keyof typeof CAP, raw: string) => {
-    const v = raw === "" ? 0 : Number(raw);
-    setRows((r) => r.map((row, j) => (j === i ? { ...row, [f]: v } : row)));
-    setStatus("idle");
-  };
   const overCap = (v: number, f: keyof typeof CAP) => v < 0 || v > CAP[f];
   const totals = rows.map((r) => r.first_ca + r.second_ca + r.exam);
   const invalid = useMemo(() => rows.some((r) =>
     overCap(r.first_ca, "first_ca") || overCap(r.second_ca, "second_ca") || overCap(r.exam, "exam")), [rows]);
   const classAvg = totals.length ? totals.reduce((a, b) => a + b, 0) / totals.length : 0;
 
-  async function save() {
-    if (invalid || !arm || !subject) return;
+  const dKey = useMemo(() => (arm && subject ? draftKey({ arm, subject, term, session }) : ""), [arm, subject, term, session]);
+  const toDraft = (rs: Row[]) => rs.map((r) => ({ learner_id: r.learner_id, first_ca: r.first_ca, second_ca: r.second_ca, exam: r.exam }));
+  const sameMarks = (a: Row[], b: Row[]) =>
+    a.length === b.length && a.every((r, i) => r.first_ca === b[i].first_ca && r.second_ca === b[i].second_ca && r.exam === b[i].exam);
+
+  // Latest values for the debounced autosave closure.
+  const rowsRef = useRef(rows); rowsRef.current = rows;
+  const metaRef = useRef({ arm, subject, term, session }); metaRef.current = { arm, subject, term, session };
+  const invalidRef = useRef(invalid); invalidRef.current = invalid;
+  const dKeyRef = useRef(dKey); dKeyRef.current = dKey;
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load the roster; if a local draft for this exact view exists and differs from
+  // the saved marks, restore it (so refresh/crash never loses typed marks).
+  useEffect(() => {
+    if (!arm || !subject) { setRows([]); return; }
+    let live = true;
+    setStatus("loading"); setRestored(false); setDirty(false);
+    loadRows(arm, subject, term, session)
+      .then((r) => {
+        if (!live) return;
+        const draft = dKey ? loadDraft(dKey) : null;
+        if (draft) {
+          const byId = new Map(draft.map((d) => [d.learner_id, d]));
+          const merged = r.map((row) => {
+            const d = byId.get(row.learner_id);
+            return d ? { ...row, first_ca: d.first_ca, second_ca: d.second_ca, exam: d.exam } : row;
+          });
+          if (!sameMarks(merged, r)) { setRows(merged); setRestored(true); setDirty(true); setStatus("idle"); return; }
+        }
+        setRows(r); setStatus("idle");
+      })
+      .catch((e) => { if (live) { setStatus("error"); setMsg(e.message); } });
+    return () => { live = false; };
+  }, [arm, subject, term, session]);
+
+  async function flush() {
+    const r = rowsRef.current, m = metaRef.current;
+    if (!m.arm || !m.subject || r.length === 0 || invalidRef.current) return;
     setStatus("saving");
-    try { await onSave(rows, { classId: arm, subjectId: subject, term, session });
-      setStatus("saved"); setMsg(`${rows.length} learners saved.`); }
-    catch (e: any) { setStatus("error"); setMsg(e.message); }
+    try {
+      await onSave(r, { classId: m.arm, subjectId: m.subject, term: m.term, session: m.session });
+      clearDraft(dKeyRef.current);
+      setDirty(false); setRestored(false); setStatus("saved");
+      setSavedAt(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+      setMsg(`${r.length} learners saved.`);
+    } catch (e: any) { setStatus("error"); setMsg(e.message); }
   }
+  function saveNow() { if (timer.current) clearTimeout(timer.current); void flush(); }
+
+  const set = (i: number, f: keyof typeof CAP, raw: string) => {
+    const v = raw === "" ? 0 : Number(raw);
+    setRows((prev) => {
+      const next = prev.map((row, j) => (j === i ? { ...row, [f]: v } : row));
+      if (dKey) saveDraft(dKey, toDraft(next));   // mirror to device immediately
+      return next;
+    });
+    setDirty(true); setStatus("idle");
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => { void flush(); }, 1000);   // debounced autosave
+  };
+
+  function discardDraft() {
+    if (dKey) clearDraft(dKey);
+    setRestored(false); setDirty(false); setStatus("loading");
+    loadRows(arm, subject, term, session)
+      .then((r) => { setRows(r); setStatus("idle"); })
+      .catch((e) => { setStatus("error"); setMsg(e.message); });
+  }
+
+  // Warn on refresh/close while there are unsaved edits or a save is in flight.
+  useEffect(() => {
+    if (!dirty && status !== "saving") return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty, status]);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
   if (arms.length === 0) {
     return (
@@ -82,14 +162,17 @@ export default function ScoreEntry({
             CA1 /{CAP.first_ca} · CA2 /{CAP.second_ca} · Exam /{CAP.exam} · Total /{TOTAL_MAX}
           </div>
         </div>
-        <button onClick={save} disabled={invalid || status === "saving" || rows.length === 0}
-          style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 10,
-            border: "none", fontWeight: 600, fontSize: 14, cursor: invalid ? "not-allowed" : "pointer",
-            background: status === "saved" ? "#1FA97A" : "#5B43F0", color: "#fff",
-            opacity: invalid || rows.length === 0 ? 0.5 : 1 }}>
-          {status === "saved" ? <Check size={16} /> : <Save size={16} />}
-          {status === "saving" ? "Saving…" : status === "saved" ? "Saved" : "Save all"}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <SyncStatus status={status} dirty={dirty} invalid={invalid} savedAt={savedAt} />
+          <button onClick={saveNow} disabled={invalid || status === "saving" || rows.length === 0}
+            style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 10,
+              border: "none", fontWeight: 600, fontSize: 14, cursor: invalid ? "not-allowed" : "pointer",
+              background: status === "saved" && !dirty ? "#1FA97A" : "#5B43F0", color: "#fff",
+              opacity: invalid || rows.length === 0 ? 0.5 : 1 }}>
+            {status === "saved" && !dirty ? <Check size={16} /> : <Save size={16} />}
+            {status === "saving" ? "Saving…" : status === "saved" && !dirty ? "Saved" : "Save all"}
+          </button>
+        </div>
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
@@ -99,10 +182,17 @@ export default function ScoreEntry({
         <Sel label="Session" value={session} set={setSession} opts={[{ id: "2024/2025", label: "2024/2025" }, { id: "2025/2026", label: "2025/2026" }]} />
       </div>
 
-      {(status === "saved" || status === "error") &&
-        <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12, fontSize: 13,
-          color: status === "error" ? "#D2353A" : "#1FA97A" }}>
-          {status === "error" ? <AlertCircle size={15} /> : <Check size={15} />}{msg}
+      {restored &&
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, padding: "10px 12px", fontSize: 13,
+          background: "color-mix(in srgb, #E08A1E 12%, transparent)", border: "1px solid color-mix(in srgb, #E08A1E 40%, transparent)", borderRadius: 10, color: "var(--ink)" }}>
+          <AlertCircle size={15} color="#E08A1E" />
+          <span style={{ flex: 1 }}>Restored unsaved marks from this device. <strong>Save all</strong> to keep them.</span>
+          <button onClick={discardDraft} style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--ink-soft)", cursor: "pointer" }}>Discard</button>
+        </div>}
+
+      {status === "error" &&
+        <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12, fontSize: 13, color: "#D2353A" }}>
+          <AlertCircle size={15} />{msg}
         </div>}
 
       {status === "loading" ? <Empty>Loading learners…</Empty>
@@ -156,6 +246,21 @@ export default function ScoreEntry({
   );
 }
 
+function SyncStatus({ status, dirty, invalid, savedAt }: { status: string; dirty: boolean; invalid: boolean; savedAt: string }) {
+  let icon: React.ReactNode, text: string, color = "var(--ink-faint)";
+  if (status === "saving") { icon = <Loader2 size={14} className="dm-spin" />; text = "Saving…"; }
+  else if (status === "error") { icon = <CloudOff size={14} />; text = "Couldn't save — kept on this device"; color = "#D2353A"; }
+  else if (invalid) { icon = <AlertCircle size={14} />; text = "Fix highlighted marks to save"; color = "#D2353A"; }
+  else if (dirty) { icon = <Cloud size={14} />; text = "Unsaved changes…"; color = "#E08A1E"; }
+  else if (status === "saved") { icon = <Check size={14} />; text = savedAt ? `All changes saved · ${savedAt}` : "All changes saved"; color = "#1FA97A"; }
+  else return null;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color }}>
+      <style>{`@keyframes dm-spin{to{transform:rotate(360deg)}}.dm-spin{animation:dm-spin 1s linear infinite}`}</style>
+      {icon}{text}
+    </span>
+  );
+}
 function Wrap({ children }: { children: React.ReactNode }) {
   return <div className="page-pad" style={{ maxWidth: 940, margin: "0 auto", fontFamily: "system-ui, sans-serif", color: "var(--ink)" }}>{children}</div>;
 }
