@@ -24,6 +24,7 @@ export interface LearnerProfileData {
   learner: {
     id: string; admission_number: string; fullname: string; gender: string | null;
     class_label: string; guardian_name: string | null; guardian_phone: string | null;
+    enrolled_on: string | null;
   };
   risk: { avg: number; attendance: number; missing: number; level: string };
   scores: ScoreLine[];
@@ -35,10 +36,11 @@ export interface LearnerProfileData {
 export async function getLearnerProfile(id: string): Promise<LearnerProfileData> {
   const { data: l, error: le } = await supabase
     .from("learners")
-    .select("id, admission_number, fullname, gender, guardian_name, guardian_phone, class_id, classes!inner(grade_level, arm)")
+    .select("id, admission_number, fullname, gender, guardian_name, guardian_phone, enrolled_on, class_id, classes!inner(grade_level, arm)")
     .eq("id", id)
     .single();
   if (le) throw le;
+  const enrolledOn = (l as any).enrolled_on as string | null;
 
   const [scoresRes, subjectsRes, riskRes, attRes, subsRes, intRes] = await Promise.all([
     supabase.from("score_report")
@@ -65,7 +67,8 @@ export async function getLearnerProfile(id: string): Promise<LearnerProfileData>
     exam: s.exam, total: s.total, grade: s.grade, category: s.category, position: s.position,
   })).sort((a, b) => a.session.localeCompare(b.session) || a.term.localeCompare(b.term) || a.subject_name.localeCompare(b.subject_name));
 
-  const att = attRes.data ?? [];
+  // Only count attendance from the day the learner joined (matches the risk view).
+  const att = (attRes.data ?? []).filter((a: any) => !enrolledOn || a.date >= enrolledOn);
   const present = att.filter((a: any) => a.status === "Present").length;
   const absent = att.filter((a: any) => a.status === "Absent").length;
   const late = att.filter((a: any) => a.status === "Late").length;
@@ -88,6 +91,7 @@ export async function getLearnerProfile(id: string): Promise<LearnerProfileData>
       id: (l as any).id, admission_number: (l as any).admission_number, fullname: (l as any).fullname,
       gender: (l as any).gender, class_label: `${cls?.grade_level ?? ""} ${cls?.arm ?? ""}`.trim(),
       guardian_name: (l as any).guardian_name, guardian_phone: (l as any).guardian_phone,
+      enrolled_on: enrolledOn,
     },
     risk: {
       avg: Math.round(riskRes.data?.avg_total ?? 0), attendance: Math.round(riskRes.data?.attendance_pct ?? 0),
