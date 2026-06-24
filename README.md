@@ -9,8 +9,9 @@ assignments, interventions — plus printable reports and a supervisor role.
 1. Create a project at supabase.com.
 2. SQL Editor → run, in order: `supabase/schema.sql`, `migration_arms.sql`,
    `migration_setup.sql`, `migration_laims.sql` (supervisor role),
-   `migration_trend.sql` (declining-trend early-warning signal), and
-   `migration_subjects.sql` (lets you rename/delete subjects).
+   `migration_trend.sql` (declining-trend early-warning signal),
+   `migration_subjects.sql` (lets you rename/delete subjects), and
+   `migration_enrollment.sql` (mid-term joiners — see §below).
 3. Storage → create a **private** bucket named `evidence`, then run
    `migration_evidence_storage.sql` (own-files read/write/delete policies for
    the Weekly tracker uploads).
@@ -82,6 +83,16 @@ average, low attendance, missing assignments, and a **term-over-term decline**
 (latest term average vs the previous term). Declining learners show a ▼ on the
 dashboard. Interventions whose `follow_up_date` has passed surface as a
 **"Follow-ups due"** KPI + panel so the loop doesn't lapse.
+
+## Mid-term joiners
+A learner who joins in Term 2 or 3 shouldn't be judged on the period before they
+arrived. Set their **Joined** date on the Classes page (blank = present from the
+start). `migration_enrollment.sql` adds `learners.enrolled_on` and rescopes the
+`learner_risk` view so attendance % and missing-assignment counts only consider
+dates/assignments **on or after** that date. Their term averages already only
+span the terms they have marks for, and assignments set before they joined are
+hidden from that learner's submission grid. The join date also shows on the
+learner profile, where attendance is counted from it.
 
 ## Evidence files
 Weekly evidence uploads go to the private `evidence` Storage bucket under

@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { UserPlus, FolderPlus, Upload, Trash2 } from "lucide-react";
 import {
   ensureProfile, getClasses, createClass, getLearnersBasic, bulkAddLearners,
-  deleteClass, deleteLearner, type ClassRow, type LearnerBasic,
+  deleteClass, deleteLearner, updateLearnerEnrollment, type ClassRow, type LearnerBasic,
 } from "@/lib/classes";
 
 const GRADES = ["Year 7", "Year 8", "Year 9", "Year 10", "Year 11", "Year 12"];
+const today = () => new Date().toISOString().slice(0, 10);
 const card: React.CSSProperties = { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, padding: 18, boxShadow: "var(--card-shadow)" };
 const inp: React.CSSProperties = { padding: "9px 11px", borderRadius: 10, border: "1px solid var(--border)", fontSize: 13, boxSizing: "border-box", background: "var(--surface)", color: "var(--ink)" };
 const btn: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 14px", borderRadius: 10, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer" };
@@ -21,6 +22,7 @@ export default function ClassesPage() {
   const [year, setYear] = useState("2024/2025");
   const [adm, setAdm] = useState("");
   const [name, setName] = useState("");
+  const [joined, setJoined] = useState(today());
   const [csv, setCsv] = useState("");
   const [msg, setMsg] = useState("");
 
@@ -38,19 +40,23 @@ export default function ClassesPage() {
   }
   async function addOne() {
     if (!sel || !adm || !name) return;
-    try { await bulkAddLearners(sel, [{ admission_number: adm.trim(), fullname: name.trim() }]);
-      setAdm(""); setName(""); setMsg("Learner added."); setLearners(await getLearnersBasic(sel)); }
+    try { await bulkAddLearners(sel, [{ admission_number: adm.trim(), fullname: name.trim(), enrolled_on: joined || null }]);
+      setAdm(""); setName(""); setJoined(today()); setMsg("Learner added."); setLearners(await getLearnersBasic(sel)); }
     catch (e: any) { setMsg(e.message); }
   }
   async function importCsv() {
     if (!sel || !csv.trim()) return;
-    // lines: admission_number, fullname[, gender]
+    // lines: admission_number, fullname[, gender[, joined YYYY-MM-DD]]
     const rows = csv.trim().split(/\r?\n/).map((line) => {
-      const [admission_number, fullname, gender] = line.split(",").map((s) => s?.trim());
-      return { admission_number, fullname, gender: gender || null };
+      const [admission_number, fullname, gender, enrolled_on] = line.split(",").map((s) => s?.trim());
+      return { admission_number, fullname, gender: gender || null, enrolled_on: enrolled_on || null };
     }).filter((r) => r.admission_number && r.fullname);
     try { await bulkAddLearners(sel, rows); setCsv(""); setMsg(`Imported ${rows.length} learners.`);
       setLearners(await getLearnersBasic(sel)); }
+    catch (e: any) { setMsg(e.message); }
+  }
+  async function setEnrollment(l: LearnerBasic, value: string) {
+    try { await updateLearnerEnrollment(l.id, value || null); setLearners(await getLearnersBasic(sel)); }
     catch (e: any) { setMsg(e.message); }
   }
   async function removeArm(c: ClassRow) {
@@ -120,14 +126,21 @@ export default function ClassesPage() {
             <p style={{ fontSize: 13, color: "var(--ink-faint)" }}>Create an arm first, then select it.</p>
           ) : (
             <>
-              <div style={{ display: "flex", gap: 9, marginTop: 10 }}>
+              <div style={{ display: "flex", gap: 9, marginTop: 10, flexWrap: "wrap" }}>
                 <input style={{ ...inp, flex: "0 0 130px" }} placeholder="Adm. no." value={adm} onChange={(e) => setAdm(e.target.value)} />
-                <input style={{ ...inp, flex: 1 }} placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} />
-                <button style={btn} onClick={addOne}><UserPlus size={15} /> Add</button>
+                <input style={{ ...inp, flex: 1, minWidth: 140 }} placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} />
+                <label style={{ display: "flex", flexDirection: "column", fontSize: 10, fontWeight: 600, color: "var(--ink-faint)", textTransform: "uppercase", letterSpacing: ".05em" }}>
+                  Joined
+                  <input type="date" style={{ ...inp, flex: "0 0 150px" }} value={joined} max={today()} onChange={(e) => setJoined(e.target.value)} title="Date this learner joined the class" />
+                </label>
+                <button style={{ ...btn, alignSelf: "flex-end" }} onClick={addOne}><UserPlus size={15} /> Add</button>
+              </div>
+              <div style={{ marginTop: 6, fontSize: 11, color: "var(--ink-faint)" }}>
+                Set <strong>Joined</strong> to the day a mid-term learner started — their attendance &amp; assignments are only counted from then on.
               </div>
 
               <div style={{ marginTop: 14, fontSize: 12, fontWeight: 600, color: "var(--ink-faint)", textTransform: "uppercase", letterSpacing: ".05em" }}>
-                Or paste / import many — one per line: <code>adm, name, gender</code>
+                Or paste / import many — one per line: <code>adm, name, gender, joined</code>
               </div>
               <textarea value={csv} onChange={(e) => setCsv(e.target.value)} rows={4}
                 placeholder={"IJA/24/001, Amaka Okafor, Female\nIJA/24/002, Tunde Adeyemi, Male"}
@@ -143,7 +156,10 @@ export default function ClassesPage() {
                     <div key={l.id} className="row-hover" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
                       borderBottom: i < learners.length - 1 ? "1px solid var(--border)" : "none", fontSize: 13 }}>
                       <span style={{ fontFamily: "ui-monospace, monospace", color: "var(--ink-faint)", width: 110 }}>{l.admission_number}</span>
-                      <span style={{ fontWeight: 600, flex: 1 }}>{l.fullname}</span>
+                      <span style={{ fontWeight: 600, flex: 1, minWidth: 90 }}>{l.fullname}</span>
+                      <input type="date" value={l.enrolled_on ?? ""} max={today()} onChange={(e) => setEnrollment(l, e.target.value)}
+                        title="Date joined — leave blank if present from the start"
+                        style={{ ...inp, padding: "4px 7px", fontSize: 11, width: 132, color: l.enrolled_on ? "var(--ink)" : "var(--ink-faint)" }} />
                       <button onClick={() => removeLearner(l)} title="Delete learner" aria-label={`Delete ${l.fullname}`} className="icon-btn"
                         style={{ display: "inline-flex", alignItems: "center", padding: 5, border: "none", borderRadius: 7,
                           background: "transparent", color: "var(--ink-faint)", cursor: "pointer" }}>

@@ -46,11 +46,20 @@ export async function createAssignment(
   return data as AssignmentRow;
 }
 
-/** Roster for the assignment's arm, pre-filled with each learner's submission status. */
+/** Roster for the assignment's arm, pre-filled with each learner's submission status.
+ *  Learners who enrolled after this assignment was set are omitted — they shouldn't
+ *  be marked (or counted "missing") for work due before they joined. */
 export async function getSubmissions(assignmentId: string, classId: string): Promise<SubmissionRow[]> {
+  const { data: assignment, error: ae } = await supabase
+    .from("assignments").select("due_date, created_at").eq("id", assignmentId).single();
+  if (ae) throw ae;
+  // Cutoff: a learner counts for this assignment if they joined on/before its due
+  // date (or, lacking one, when it was created).
+  const cutoff = (assignment?.due_date ?? assignment?.created_at ?? "").slice(0, 10);
+
   const { data: learners, error: le } = await supabase
     .from("learners")
-    .select("id, admission_number, fullname")
+    .select("id, admission_number, fullname, enrolled_on")
     .eq("class_id", classId)
     .order("fullname");
   if (le) throw le;
@@ -62,10 +71,12 @@ export async function getSubmissions(assignmentId: string, classId: string): Pro
   if (se) throw se;
 
   const byLearner = new Map<string, SubStatus>((subs ?? []).map((s: any) => [s.learner_id, s.status]));
-  return (learners ?? []).map((l: any) => ({
-    learner_id: l.id, adm: l.admission_number, name: l.fullname,
-    status: byLearner.get(l.id) ?? "Not Submitted",
-  }));
+  return (learners ?? [])
+    .filter((l: any) => !l.enrolled_on || !cutoff || l.enrolled_on <= cutoff || byLearner.has(l.id))
+    .map((l: any) => ({
+      learner_id: l.id, adm: l.admission_number, name: l.fullname,
+      status: byLearner.get(l.id) ?? "Not Submitted",
+    }));
 }
 
 /** Bulk upsert the submission grid for one assignment. */
