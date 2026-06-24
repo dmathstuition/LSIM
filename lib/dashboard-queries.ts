@@ -9,6 +9,9 @@ export interface LearnerRow {
   id: string; adm: string; name: string;
   avg: number; attendance: number; missing: number; level: RiskLevel; declining: boolean;
   comp: ComponentPct;
+  /** True if the learner has ≥1 score row in the current scope (the selected
+   *  subject, or any subject when none is selected). Academic panels filter on it. */
+  hasScore: boolean;
 }
 
 /** Average each component across a learner's score rows, expressed as % of its max. */
@@ -27,8 +30,16 @@ function componentAverages(rows: { first_ca: number; second_ca: number; exam: nu
   };
 }
 
-/** All of the teacher's learners (RLS-scoped), optionally one class. */
-export async function getLearners(classId?: string): Promise<LearnerRow[]> {
+/**
+ * All of the teacher's learners (RLS-scoped), optionally narrowed to one class.
+ *
+ * `subjectId` re-scopes only the academic fields: when set, each learner's `avg`
+ * and `comp` come from that subject's `score_report` rows (and `hasScore` is true
+ * only for learners who take it). The whole-child early-warning fields —
+ * `attendance`, `missing`, `level`, `declining` — always come from
+ * `learner_risk_level`, which aggregates across all subjects.
+ */
+export async function getLearners(classId?: string, subjectId?: string): Promise<LearnerRow[]> {
   let q = supabase.from("learner_risk_level")
     .select("learner_id, fullname, class_id, avg_total, attendance_pct, missing_assignments, risk_level, score_delta");
   if (classId) q = q.eq("class_id", classId);
@@ -38,29 +49,44 @@ export async function getLearners(classId?: string): Promise<LearnerRow[]> {
   const ids = (data ?? []).map((r: any) => r.learner_id);
   const admMap = new Map<string, string>();
   const compMap = new Map<string, ComponentPct>();
+  const subjAvg = new Map<string, number>();   // per-subject mean total, when subjectId set
   if (ids.length) {
     const { data: ls } = await supabase.from("learners").select("id, admission_number").in("id", ids);
     (ls ?? []).forEach((l: any) => admMap.set(l.id, l.admission_number));
 
-    // Per-component averages come from the raw component marks in score_report.
+    // Per-component averages come from the raw component marks in score_report,
+    // optionally narrowed to a single subject.
     let sq = supabase.from("score_report").select("learner_id, first_ca, second_ca, exam, total, class_id");
     if (classId) sq = sq.eq("class_id", classId);
+    if (subjectId) sq = sq.eq("subject_id", subjectId);
     const { data: sr } = await sq;
     const byLearner = new Map<string, any[]>();
     (sr ?? []).forEach((r: any) => {
       const arr = byLearner.get(r.learner_id) ?? [];
       arr.push(r); byLearner.set(r.learner_id, arr);
     });
-    byLearner.forEach((rows, lid) => compMap.set(lid, componentAverages(rows)));
+    byLearner.forEach((rows, lid) => {
+      compMap.set(lid, componentAverages(rows));
+      subjAvg.set(lid, rows.reduce((s, r) => s + r.total, 0) / rows.length);
+    });
   }
   const emptyComp: ComponentPct = { total: 0, first_ca: 0, second_ca: 0, exam: 0 };
-  return (data ?? []).map((r: any) => ({
-    id: r.learner_id, adm: admMap.get(r.learner_id) ?? "", name: r.fullname,
-    avg: Math.round(r.avg_total ?? 0), attendance: Math.round(r.attendance_pct ?? 0),
-    missing: r.missing_assignments ?? 0, level: (r.risk_level ?? "Low") as RiskLevel,
-    declining: (r.score_delta ?? 0) <= -5,
-    comp: compMap.get(r.learner_id) ?? emptyComp,
-  }));
+  return (data ?? []).map((r: any) => {
+    const hasScore = compMap.has(r.learner_id);
+    // With a subject selected, the academic average is that subject's mean total
+    // (max = 100, so already a %); otherwise the cross-subject avg from the view.
+    const avg = subjectId
+      ? Math.round(subjAvg.get(r.learner_id) ?? 0)
+      : Math.round(r.avg_total ?? 0);
+    return {
+      id: r.learner_id, adm: admMap.get(r.learner_id) ?? "", name: r.fullname,
+      avg, attendance: Math.round(r.attendance_pct ?? 0),
+      missing: r.missing_assignments ?? 0, level: (r.risk_level ?? "Low") as RiskLevel,
+      declining: (r.score_delta ?? 0) <= -5,
+      comp: compMap.get(r.learner_id) ?? emptyComp,
+      hasScore,
+    };
+  });
 }
 
 export function getKpis(rows: LearnerRow[]) {
@@ -69,9 +95,10 @@ export function getKpis(rows: LearnerRow[]) {
 
 export interface TrendPoint { term: string; total: number; first_ca: number; second_ca: number; exam: number; }
 
-export async function getScoreTrend(classId?: string): Promise<TrendPoint[]> {
+export async function getScoreTrend(classId?: string, subjectId?: string): Promise<TrendPoint[]> {
   let q = supabase.from("score_report").select("term, first_ca, second_ca, exam, total, class_id");
   if (classId) q = q.eq("class_id", classId);
+  if (subjectId) q = q.eq("subject_id", subjectId);
   const { data, error } = await q;
   if (error) throw error;
   type Acc = { total: number; first_ca: number; second_ca: number; exam: number; n: number };
