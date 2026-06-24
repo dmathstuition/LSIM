@@ -33,12 +33,17 @@ const ASSIGNMENTS_PER_TERM = 8;
 export interface Opt { id: string; label: string; }
 
 export default function Dashboard({
-  learners, classes, selectedClass, onSelectClass, scoreTrend, attTrend, overdue = [], teacherEmail,
+  learners, classes, selectedClass, onSelectClass,
+  subjects = [], selectedSubject = "all", onSelectSubject,
+  scoreTrend, attTrend, overdue = [], teacherEmail,
 }: {
   learners: LearnerRow[];
   classes: Opt[];
   selectedClass: string;
   onSelectClass: (v: string) => void;
+  subjects?: Opt[];
+  selectedSubject?: string;
+  onSelectSubject?: (v: string) => void;
   scoreTrend: TrendPoint[];
   attTrend: { w: string; v: number }[];
   overdue?: OverdueFollowup[];
@@ -49,38 +54,46 @@ export default function Dashboard({
   const [metric, setMetric] = useState<ScoreComponent>("total");
   const t = THEMES[theme];
 
+  const subjectLabel = selectedSubject === "all" ? "All subjects" : (subjects.find((s) => s.id === selectedSubject)?.label ?? "All subjects");
+  // Academic panels are scoped to the selected subject, so they only count
+  // learners who actually have marks in scope. Whole-child early-warning panels
+  // (attendance, submission, risk) keep using the full cohort `learners`.
+  const scored = useMemo(() => learners.filter((l) => l.hasScore), [learners]);
+
   // Selected-component value for each learner (% of that component's max).
   const val = (l: LearnerRow) => l.comp?.[metric] ?? 0;
 
   const k = useMemo(() => {
-    const n = learners.length || 1;
+    const n = learners.length || 1;          // cohort denominator (whole-child)
+    const sn = scored.length || 1;           // academic denominator (in-subject)
     return {
       n: learners.length,
-      avg: learners.reduce((s, l) => s + val(l), 0) / n,
+      avg: scored.reduce((s, l) => s + val(l), 0) / sn,
       att: learners.reduce((s, l) => s + l.attendance, 0) / n,
       sub: (learners.reduce((s, l) => s + (ASSIGNMENTS_PER_TERM - l.missing), 0) / (n * ASSIGNMENTS_PER_TERM)) * 100,
-      pass: (learners.filter((l) => l.avg >= 50).length / n) * 100,
+      pass: (scored.filter((l) => l.avg >= 50).length / sn) * 100,
       atRisk: learners.filter((l) => l.level === "High" || l.level === "Critical").length,
     };
-  }, [learners, metric]);
+  }, [learners, scored, metric]);
 
   // Class-average % for each component (always all components, for the breakdown panel).
   const breakdown = useMemo(() => {
-    const n = learners.length || 1;
+    const n = scored.length || 1;
     return COMPONENT_ORDER.map((c) => ({
       key: c, name: COMPONENT_LABELS[c],
-      value: Math.round(learners.reduce((s, l) => s + (l.comp?.[c] ?? 0), 0) / n),
+      value: Math.round(scored.reduce((s, l) => s + (l.comp?.[c] ?? 0), 0) / n),
     }));
-  }, [learners]);
+  }, [scored]);
 
-  const dist = useMemo(() => BANDS.map((b) => ({ name: b.name, color: b.color, value: learners.filter((l) => bandOf(val(l)).name === b.name).length })), [learners, metric]);
+  const dist = useMemo(() => BANDS.map((b) => ({ name: b.name, color: b.color, value: scored.filter((l) => bandOf(val(l)).name === b.name).length })), [scored, metric]);
   const riskMix = useMemo(() => ["Low", "Medium", "High", "Critical"].map((lv) => ({ name: lv, color: RISK[lv], value: learners.filter((l) => l.level === lv).length })), [learners]);
-  const ranked = [...learners].sort((a, b) => val(b) - val(a));
+  const ranked = [...scored].sort((a, b) => val(b) - val(a));
   const perfList = perfMode === "top" ? ranked.slice(0, 8) : ranked.slice(-8).reverse();
   const atRiskList = [...learners].filter((l) => l.level !== "Low").sort((a, b) => (b.level === "Critical" ? 1 : 0) - (a.level === "Critical" ? 1 : 0) || a.avg - b.avg);
 
   function exportCsv() {
-    const label = classes.find((c) => c.id === selectedClass)?.label ?? "all-arms";
+    const arm = classes.find((c) => c.id === selectedClass)?.label ?? "all-arms";
+    const label = selectedSubject === "all" ? arm : `${arm}-${subjectLabel}`;
     const csv = toCsv(ranked, [
       { key: "adm", header: "Admission no." }, { key: "name", header: "Name" },
       { key: "ca1", header: "CA1 %", get: (l) => l.comp?.first_ca ?? 0 },
@@ -139,7 +152,7 @@ export default function Dashboard({
         <header style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <div>
             <div style={{ fontSize: 18, fontWeight: 700 }}>Dashboard</div>
-            <div style={{ fontSize: 12, color: t.inkFaint, marginTop: 3 }}>{teacherEmail ? `${teacherEmail} · ` : ""}Mathematics</div>
+            <div style={{ fontSize: 12, color: t.inkFaint, marginTop: 3 }}>{teacherEmail ? `${teacherEmail} · ` : ""}{subjectLabel}</div>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <select value={selectedClass} onChange={(e) => onSelectClass(e.target.value)}
@@ -152,6 +165,22 @@ export default function Dashboard({
             </button>
           </div>
         </header>
+
+        {subjects.length > 0 && onSelectSubject && (
+          <section className="no-print" style={{ marginBottom: 14 }}>
+            <div style={{ display: "flex", gap: 4, background: t.surface2, padding: 3, borderRadius: 10, flexWrap: "wrap" }}>
+              {[{ id: "all", label: "All subjects" }, ...subjects].map((s) => (
+                <button key={s.id} onClick={() => onSelectSubject(s.id)}
+                  style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 8, cursor: "pointer", border: "none", background: selectedSubject === s.id ? t.surface : "transparent", color: selectedSubject === s.id ? t.brand : t.inkFaint }}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: t.inkFaint, marginTop: 6 }}>
+              Academic charts reflect {selectedSubject === "all" ? "all subjects" : subjectLabel}. Attendance, submission &amp; risk are cross-subject.
+            </div>
+          </section>
+        )}
 
         {learners.length === 0 ? (
           <div className="dm-card" style={{ padding: 40, textAlign: "center" }}>
