@@ -35,6 +35,8 @@ export interface Opt { id: string; label: string; }
 export default function Dashboard({
   learners, classes, selectedClass, onSelectClass,
   subjects = [], selectedSubject = "all", onSelectSubject,
+  terms = [], selectedTerm = "all", onSelectTerm,
+  sessions = [], selectedSession = "all", onSelectSession,
   scoreTrend, attTrend, overdue = [], teacherEmail,
 }: {
   learners: LearnerRow[];
@@ -44,6 +46,12 @@ export default function Dashboard({
   subjects?: Opt[];
   selectedSubject?: string;
   onSelectSubject?: (v: string) => void;
+  terms?: string[];
+  selectedTerm?: string;
+  onSelectTerm?: (v: string) => void;
+  sessions?: string[];
+  selectedSession?: string;
+  onSelectSession?: (v: string) => void;
   scoreTrend: TrendPoint[];
   attTrend: { w: string; v: number }[];
   overdue?: OverdueFollowup[];
@@ -55,6 +63,8 @@ export default function Dashboard({
   const t = THEMES[theme];
 
   const subjectLabel = selectedSubject === "all" ? "All subjects" : (subjects.find((s) => s.id === selectedSubject)?.label ?? "All subjects");
+  const periodLabel = `${selectedTerm === "all" ? "All terms" : selectedTerm} · ${selectedSession === "all" ? "all sessions" : selectedSession}`;
+  const selStyle: React.CSSProperties = { fontSize: 13, fontWeight: 600, padding: "8px 11px", borderRadius: 10, border: `1px solid ${t.border}`, background: t.surface, color: t.ink, cursor: "pointer" };
   // Academic panels are scoped to the selected subject, so they only count
   // learners who actually have marks in scope. Whole-child early-warning panels
   // (attendance, submission, risk) keep using the full cohort `learners`.
@@ -152,14 +162,25 @@ export default function Dashboard({
         <header style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <div>
             <div style={{ fontSize: 18, fontWeight: 700 }}>Dashboard</div>
-            <div style={{ fontSize: 12, color: t.inkFaint, marginTop: 3 }}>{teacherEmail ? `${teacherEmail} · ` : ""}{subjectLabel}</div>
+            <div style={{ fontSize: 12, color: t.inkFaint, marginTop: 3 }}>{teacherEmail ? `${teacherEmail} · ` : ""}{subjectLabel} · {periodLabel}</div>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <select value={selectedClass} onChange={(e) => onSelectClass(e.target.value)}
-              style={{ fontSize: 13, fontWeight: 600, padding: "8px 11px", borderRadius: 10, border: `1px solid ${t.border}`, background: t.surface, color: t.ink, cursor: "pointer" }}>
+            <select value={selectedClass} onChange={(e) => onSelectClass(e.target.value)} style={selStyle}>
               <option value="all">All arms</option>
               {classes.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
+            {onSelectSession && sessions.length > 0 && (
+              <select value={selectedSession} onChange={(e) => onSelectSession(e.target.value)} style={selStyle} title="Session">
+                <option value="all">All sessions</option>
+                {sessions.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            )}
+            {onSelectTerm && terms.length > 0 && (
+              <select value={selectedTerm} onChange={(e) => onSelectTerm(e.target.value)} style={selStyle} title="Term">
+                <option value="all">All terms</option>
+                {terms.map((tm) => <option key={tm} value={tm}>{tm}</option>)}
+              </select>
+            )}
             <button onClick={exportCsv} disabled={learners.length === 0} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, padding: "8px 13px", borderRadius: 10, border: `1px solid ${t.border}`, background: t.surface, color: t.ink, cursor: learners.length === 0 ? "not-allowed" : "pointer", opacity: learners.length === 0 ? 0.5 : 1 }}>
               <Download size={15} /> Export CSV
             </button>
@@ -177,7 +198,7 @@ export default function Dashboard({
               ))}
             </div>
             <div style={{ fontSize: 11, color: t.inkFaint, marginTop: 6 }}>
-              Academic charts reflect {selectedSubject === "all" ? "all subjects" : subjectLabel}. Attendance, submission &amp; risk are cross-subject.
+              Academic charts reflect {selectedSubject === "all" ? "all subjects" : subjectLabel} · {periodLabel}. Attendance, submission &amp; risk are all-time (not term-scoped).
             </div>
           </section>
         )}
