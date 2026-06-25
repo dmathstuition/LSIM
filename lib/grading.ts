@@ -72,6 +72,49 @@ export function riskLevel(score: number): RiskLevel {
   return "Low";
 }
 
+/** Did a learner who joined at (js, jt) start AFTER the given (session, term)?
+ *  NULL join term = present from the start. Lexical compare ("2024/2025" <
+ *  "2025/2026", "Term 1" < "Term 2"), matching the SQL join-term exemption. */
+export function joinedAfter(js: string | null, jt: string | null, session: string, term: string): boolean {
+  if (!jt) return false;
+  if (js) return js > session || (js === session && jt > term);
+  return jt > term;
+}
+
+export interface RiskScoreRow { total: number; session: string; term: string; }
+/**
+ * Recompute a learner's early-warning result from their POST-JOIN scores only,
+ * mirroring the learner_risk SQL view (and its NULL handling: no scores → no
+ * average penalty; no attendance record → no attendance penalty). This lets the
+ * app exempt a mid-term joiner's earlier terms from the "needs support" flags
+ * even when the database migration hasn't been applied — a Term-2 joiner is never
+ * judged on Term 1, whether or not Term-1 rows exist.
+ */
+export function postJoinRisk(opts: {
+  scores: RiskScoreRow[]; joinedSession: string | null; joinedTerm: string | null;
+  attendancePct: number | null; missing: number;
+}): { avg: number; hasScore: boolean; delta: number; level: RiskLevel; declining: boolean } {
+  const elig = opts.scores.filter((s) => !joinedAfter(opts.joinedSession, opts.joinedTerm, s.session, s.term));
+  const hasScore = elig.length > 0;
+  const avg = hasScore ? elig.reduce((a, s) => a + s.total, 0) / elig.length : 0;
+
+  // term-over-term decline, from post-join term averages (latest minus previous)
+  const byTerm = new Map<string, { sum: number; n: number }>();
+  for (const s of elig) {
+    const k = `${s.session}|${s.term}`;
+    const b = byTerm.get(k) ?? { sum: 0, n: 0 };
+    b.sum += s.total; b.n += 1; byTerm.set(k, b);
+  }
+  const terms = [...byTerm.entries()].map(([k, v]) => ({ k, a: v.sum / v.n })).sort((x, y) => y.k.localeCompare(x.k));
+  const delta = terms.length >= 2 ? terms[0].a - terms[1].a : 0;
+
+  const s1 = hasScore ? (avg < 40 ? 3 : avg < 50 ? 2 : 0) : 0;
+  const s2 = opts.attendancePct == null ? 0 : opts.attendancePct < 60 ? 2 : opts.attendancePct < 75 ? 1 : 0;
+  const s3 = opts.missing >= 3 ? 2 : opts.missing >= 1 ? 1 : 0;
+  const s4 = delta <= -10 ? 2 : delta <= -5 ? 1 : 0;
+  return { avg: Math.round(avg), hasScore, delta, level: riskLevel(s1 + s2 + s3 + s4), declining: delta <= -5 };
+}
+
 export interface KpiRow { avg: number; attendance: number; missing: number; level: RiskLevel; }
 
 /** Class KPIs from learner rows. */

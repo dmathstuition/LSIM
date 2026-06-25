@@ -1,7 +1,49 @@
 import { describe, it, expect } from "vitest";
 import {
   gradeFor, performanceCategory, bandOf, riskScore, riskLevel, computeKpis, isoWeek, componentPct,
+  joinedAfter, postJoinRisk,
 } from "./grading";
+
+describe("joinedAfter — lexical join-term compare", () => {
+  it("treats no join term as present from the start", () => {
+    expect(joinedAfter(null, null, "2024/2025", "Term 1")).toBe(false);
+  });
+  it("excludes a Term-2 joiner from Term 1, includes from Term 2", () => {
+    expect(joinedAfter("2024/2025", "Term 2", "2024/2025", "Term 1")).toBe(true);
+    expect(joinedAfter("2024/2025", "Term 2", "2024/2025", "Term 2")).toBe(false);
+    expect(joinedAfter("2024/2025", "Term 2", "2024/2025", "Term 3")).toBe(false);
+  });
+  it("respects session ordering", () => {
+    expect(joinedAfter("2025/2026", "Term 1", "2024/2025", "Term 3")).toBe(true);
+    expect(joinedAfter("2024/2025", "Term 1", "2025/2026", "Term 1")).toBe(false);
+  });
+});
+
+describe("postJoinRisk — recompute excluding pre-join terms", () => {
+  const j2 = { joinedSession: "2024/2025", joinedTerm: "Term 2" } as const;
+  it("ignores a stray pre-join Term-1 zero (joiner not flagged)", () => {
+    const r = postJoinRisk({ scores: [{ total: 0, session: "2024/2025", term: "Term 1" }], ...j2, attendancePct: null, missing: 0 });
+    expect(r.hasScore).toBe(false);
+    expect(r.level).toBe("Low");          // no eligible scores, no attendance → not at risk
+    expect(r.avg).toBe(0);
+  });
+  it("flags genuinely weak post-join performance", () => {
+    const r = postJoinRisk({ scores: [{ total: 35, session: "2024/2025", term: "Term 2" }], ...j2, attendancePct: 50, missing: 3 });
+    expect(r.hasScore).toBe(true);
+    expect(r.level).toBe("Critical");     // avg<40 (3) + att<60 (2) + missing>=3 (2) = 7
+  });
+  it("null attendance adds no penalty (mirrors SQL)", () => {
+    const r = postJoinRisk({ scores: [{ total: 90, session: "2024/2025", term: "Term 2" }], ...j2, attendancePct: null, missing: 0 });
+    expect(r.level).toBe("Low");
+  });
+  it("detects a term-over-term decline", () => {
+    const r = postJoinRisk({ scores: [
+      { total: 70, session: "2024/2025", term: "Term 2" },
+      { total: 55, session: "2024/2025", term: "Term 3" },
+    ], ...j2, attendancePct: 90, missing: 0 });
+    expect(r.declining).toBe(true);       // 55 - 70 = -15
+  });
+});
 
 describe("componentPct — normalize to % of max", () => {
   it("scales each component by its cap", () => {

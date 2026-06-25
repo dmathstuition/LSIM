@@ -51,7 +51,7 @@ export default function DashboardPage() {
   }), [subject, term, session]);
 
   const learners = useMemo(() => (raw ? computeLearners(raw, scope) : []), [raw, scope]);
-  const trend = useMemo(() => (raw ? computeScoreTrend(raw.scores, scope) : []), [raw, scope]);
+  const trend = useMemo(() => (raw ? computeScoreTrend(raw, scope) : []), [raw, scope]);
 
   if (loading) return <div style={{ padding: 40, textAlign: "center", color: "var(--ink-faint)" }}>Loading…</div>;
 
