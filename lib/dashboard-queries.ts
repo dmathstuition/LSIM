@@ -46,6 +46,20 @@ export async function getScorePeriods(): Promise<{ sessions: string[]; terms: st
 export interface RawLearner {
   id: string; name: string; adm: string; gender: string | null;
   avg_total: number; attendance_pct: number; missing: number; level: RiskLevel; declining: boolean;
+  joined_session: string | null; joined_term: string | null;
+}
+
+/** True if the learner joined strictly AFTER the selected term/session — i.e. they
+ *  were not part of the class yet, so they should be excluded from that view
+ *  entirely (a Term-2 joiner must not appear in any Term-1 analysis). NULL join =
+ *  present from the start. Lexical compare matches getEntryRows / the score views. */
+function joinedAfterScope(js: string | null, jt: string | null, scope: ScoreScope): boolean {
+  if (!jt) return false;                                   // present from the start
+  const { term, session } = scope;
+  if (session && term) return (js ?? "") > session || ((js ?? "") === session && jt > term);
+  if (session) return (js ?? "") > session;
+  if (term) return jt > term;                              // single-year view: compare term only
+  return false;                                            // no term/session picked → whole cohort
 }
 // One score_report row (component marks per subject/term/session).
 export interface RawScore {
@@ -64,7 +78,7 @@ export interface DashboardRaw { learners: RawLearner[]; scores: RawScore[]; }
 export async function getDashboardRaw(classId?: string): Promise<DashboardRaw> {
   let riskQ = supabase.from("learner_risk_level")
     .select("learner_id, fullname, avg_total, attendance_pct, missing_assignments, risk_level, score_delta");
-  let learnersQ = supabase.from("learners").select("id, admission_number, gender");
+  let learnersQ = supabase.from("learners").select("id, admission_number, gender, joined_session, joined_term");
   let scoresQ = supabase.from("score_report").select("learner_id, subject_id, term, session, first_ca, second_ca, exam, total");
   if (classId) { riskQ = riskQ.eq("class_id", classId); learnersQ = learnersQ.eq("class_id", classId); scoresQ = scoresQ.eq("class_id", classId); }
 
@@ -75,12 +89,17 @@ export async function getDashboardRaw(classId?: string): Promise<DashboardRaw> {
 
   const admMap = new Map<string, string>();
   const genderMap = new Map<string, string | null>();
-  (lRes.data ?? []).forEach((l: any) => { admMap.set(l.id, l.admission_number); genderMap.set(l.id, l.gender ?? null); });
+  const joinMap = new Map<string, { s: string | null; t: string | null }>();
+  (lRes.data ?? []).forEach((l: any) => {
+    admMap.set(l.id, l.admission_number); genderMap.set(l.id, l.gender ?? null);
+    joinMap.set(l.id, { s: l.joined_session ?? null, t: l.joined_term ?? null });
+  });
 
   const learners: RawLearner[] = (riskRes.data ?? []).map((r: any) => ({
     id: r.learner_id, name: r.fullname, adm: admMap.get(r.learner_id) ?? "", gender: genderMap.get(r.learner_id) ?? null,
     avg_total: r.avg_total ?? 0, attendance_pct: r.attendance_pct ?? 0, missing: r.missing_assignments ?? 0,
     level: (r.risk_level ?? "Low") as RiskLevel, declining: (r.score_delta ?? 0) <= -5,
+    joined_session: joinMap.get(r.learner_id)?.s ?? null, joined_term: joinMap.get(r.learner_id)?.t ?? null,
   }));
   const scores: RawScore[] = (sRes.data ?? []).map((s: any) => ({
     learner_id: s.learner_id, subject_id: s.subject_id, term: s.term, session: s.session,
@@ -105,7 +124,12 @@ export function computeLearners(raw: DashboardRaw, scope: ScoreScope = {}): Lear
     if (arr) arr.push(s); else byLearner.set(s.learner_id, [s]);
   }
   const emptyComp: ComponentPct = { total: 0, first_ca: 0, second_ca: 0, exam: 0 };
-  return raw.learners.map((l) => {
+  return raw.learners
+    // Drop learners who joined after the selected term/session — they weren't in
+    // the class yet, so they must not appear in that view at all (not even in the
+    // "needs attention" / risk panels). Whole cohort shown when no term/session.
+    .filter((l) => !joinedAfterScope(l.joined_session, l.joined_term, scope))
+    .map((l) => {
     const rows = byLearner.get(l.id) ?? [];
     const avg = academicScoped
       ? (rows.length ? Math.round(rows.reduce((a, r) => a + r.total, 0) / rows.length) : 0)
