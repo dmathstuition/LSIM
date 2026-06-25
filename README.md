@@ -11,8 +11,8 @@ assignments, interventions — plus printable reports and a supervisor role.
    `migration_setup.sql`, `migration_laims.sql` (supervisor role),
    `migration_trend.sql` (declining-trend early-warning signal),
    `migration_subjects.sql` (lets you rename/delete subjects),
-   `migration_enrollment.sql` then `migration_join_term.sql`
-   (mid-term joiners — see §below).
+   `migration_enrollment.sql` → `migration_join_term.sql` →
+   `migration_join_term_analysis.sql` (mid-term joiners — see §below).
 3. Storage → create a **private** bucket named `evidence`, then run
    `migration_evidence_storage.sql` (own-files read/write/delete policies for
    the Weekly tracker uploads).
@@ -95,6 +95,12 @@ a 0 and never ranked last in an earlier term. Their averages and the dashboard's
 per-term analysis only cover the terms they actually have marks for. Attendance
 and assignments need no special handling — a late joiner simply has no records
 before they arrived. The join term also shows on the learner profile.
+
+`migration_join_term_analysis.sql` makes the exemption authoritative at the view
+level: `score_report` and `learner_risk` ignore any score a learner has for a term
+**before** their join term, so even a stray/imported first-term row never shows in
+the broadsheet, position list, dashboard analysis, average or risk for a Term-2/3
+joiner.
 
 > Migration history: this supersedes the earlier `migration_enrollment.sql`
 > (which used an exact `enrolled_on` date). Run `migration_join_term.sql` after
