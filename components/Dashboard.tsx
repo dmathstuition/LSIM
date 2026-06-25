@@ -122,24 +122,73 @@ export default function Dashboard({
   const insights = useMemo(() => {
     const out: string[] = [];
     if (scored.length === 0) return out;
+    const n = scored.length;
+    const mlabel = METRIC_TITLE[metric].toLowerCase();
+    const mean = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
+    const vals = ranked.map(val);   // sorted high → low
+
+    // 1. Gender gap
     const g = byGender.groups;
     const f = g.find((x) => x.name === "Female"), m = g.find((x) => x.name === "Male");
     if (f && m) {
       const d = f.avg - m.avg;
       out.push(Math.abs(d) < 1
         ? `Girls and boys are performing about equally (${f.avg}% vs ${m.avg}%).`
-        : `${d > 0 ? "Girls" : "Boys"} lead by ${Math.abs(d)} pts on ${METRIC_TITLE[metric].toLowerCase()} (${f.avg}% vs ${m.avg}%).`);
+        : `${d > 0 ? "Girls" : "Boys"} lead by ${Math.abs(d)} pts on ${mlabel} (${f.avg}% vs ${m.avg}%).`);
     }
+
+    // 2. Term-over-term direction (when a trend exists)
+    if (scoreTrend.length >= 2) {
+      const d = +(scoreTrend[scoreTrend.length - 1].total - scoreTrend[0].total).toFixed(1);
+      if (Math.abs(d) >= 1) out.push(`Class average has ${d > 0 ? "risen" : "fallen"} ${Math.abs(d)} pts from ${scoreTrend[0].term} to ${scoreTrend[scoreTrend.length - 1].term}.`);
+    }
+
+    // 3. Strongest / weakest assessment component
     const comps = COMPONENT_ORDER.filter((c) => c !== "total").map((c) => ({ c, v: breakdown.find((b) => b.key === c)?.value ?? 0 }));
     if (comps.length) {
       const weak = comps.reduce((a, b) => (b.v < a.v ? b : a));
       const strong = comps.reduce((a, b) => (b.v > a.v ? b : a));
-      if (weak.v !== strong.v) out.push(`${COMPONENT_LABELS[strong.c]} is the strongest component (${strong.v}%) and ${COMPONENT_LABELS[weak.c]} the weakest (${weak.v}%).`);
+      if (weak.v !== strong.v) out.push(`${COMPONENT_LABELS[strong.c]} is the strongest component (${strong.v}%) and ${COMPONENT_LABELS[weak.c]} the weakest (${weak.v}%) — focus revision there.`);
     }
+
+    // 4. Spread + median
+    if (vals.length && vals[0] !== vals[vals.length - 1]) {
+      out.push(`Scores span ${vals[vals.length - 1]}%–${vals[0]}% (a ${vals[0] - vals[vals.length - 1]}-pt spread); the middle learner sits at ${vals[Math.floor((n - 1) / 2)]}%.`);
+    }
+
+    // 5. Pass rate + at-risk
     out.push(`${k.pass.toFixed(0)}% of learners are passing (≥50%); ${k.atRisk} ${k.atRisk === 1 ? "is" : "are"} High/Critical risk.`);
-    if (ranked.length) out.push(`Top performer: ${ranked[0].name} at ${val(ranked[0])}%.`);
+
+    // 6. Outstanding share
+    const out80 = vals.filter((v) => v >= 80).length;
+    if (out80) out.push(`${out80} learner${out80 === 1 ? "" : "s"} (${Math.round((out80 / n) * 100)}%) are scoring 80%+ (Outstanding).`);
+
+    // 7. Attendance ↔ results link
+    const lowAtt = scored.filter((l) => l.attendance < 75), highAtt = scored.filter((l) => l.attendance >= 75);
+    if (lowAtt.length && highAtt.length) {
+      const gap = Math.round(mean(highAtt.map(val)) - mean(lowAtt.map(val)));
+      if (gap >= 3) out.push(`Attendance tracks results: learners under 75% attendance average ${Math.round(mean(lowAtt.map(val)))}%, ${gap} pts below the rest.`);
+    }
+
+    // 8. Missing-work impact
+    const miss = scored.filter((l) => l.missing >= 3), fewMiss = scored.filter((l) => l.missing < 3);
+    if (miss.length && fewMiss.length) {
+      const gap = Math.round(mean(fewMiss.map(val)) - mean(miss.map(val)));
+      if (gap >= 3) out.push(`${miss.length} learner${miss.length === 1 ? "" : "s"} with 3+ missing tasks average ${gap} pts below their peers.`);
+    }
+
+    // 9. Declining learners
+    const dec = scored.filter((l) => l.declining).length;
+    if (dec) out.push(`${dec} learner${dec === 1 ? " is" : "s are"} trending down (▼) versus their previous term — worth an early check-in.`);
+
+    // 10. Attendance health
+    const belowAtt = scored.filter((l) => l.attendance < 75).length;
+    if (belowAtt) out.push(`${belowAtt} of ${n} learner${belowAtt === 1 ? "" : "s"} sit below 75% attendance.`);
+
+    // 11. Top & bottom names
+    if (ranked.length) out.push(`Top: ${ranked[0].name} (${val(ranked[0])}%); lowest in scope: ${ranked[ranked.length - 1].name} (${val(ranked[ranked.length - 1])}%).`);
     return out;
-  }, [scored, byGender, breakdown, k, ranked, metric]);
+  }, [scored, byGender, breakdown, k, ranked, metric, scoreTrend]);
 
   // Print to PDF. Force light colours first (inline chart colours don't adapt to
   // an @media print rule), then restore the user's theme afterwards.
