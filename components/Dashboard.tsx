@@ -18,8 +18,8 @@ const METRIC_TITLE: Record<ScoreComponent, string> = {
 };
 
 const THEMES = {
-  light: { bg: "#EAEDF4", grid: "rgba(19,24,43,0.05)", surface: "#FFFFFF", surface2: "#F5F7FB", border: "#E1E5EF", ink: "#13182B", inkSoft: "#576074", inkFaint: "#8B92A4", brand: "#5B43F0" },
-  dark: { bg: "#0B0E18", grid: "rgba(255,255,255,0.04)", surface: "#141826", surface2: "#1A1F30", border: "#272D40", ink: "#EDEFF5", inkSoft: "#9BA2B6", inkFaint: "#6B7288", brand: "#8B78FF" },
+  light: { bg: "#F3F6FC", grid: "rgba(16,38,77,0.05)", surface: "#FFFFFF", surface2: "#F1F5FB", border: "#E4E9F2", ink: "#142544", inkSoft: "#586781", inkFaint: "#8893A7", brand: "#1F62D4" },
+  dark: { bg: "#0A1120", grid: "rgba(255,255,255,0.04)", surface: "#111A2C", surface2: "#17223A", border: "#25314C", ink: "#EAEEF7", inkSoft: "#9CA8C0", inkFaint: "#6B7794", brand: "#5E8DF0" },
 };
 const BANDS = [
   { name: "Outstanding", min: 80, color: "#1FA97A" }, { name: "Very Good", min: 70, color: "#5BB04A" },
@@ -172,7 +172,7 @@ export default function Dashboard({
 
   const css = `
     .dm-root{background:${t.bg};color:${t.ink};min-height:calc(100vh - 56px);
-      font-family:system-ui,-apple-system,sans-serif;
+      font-family:var(--font-sans),system-ui,-apple-system,sans-serif;
       background-image:linear-gradient(${t.grid} 1px,transparent 1px),linear-gradient(90deg,${t.grid} 1px,transparent 1px);
       background-size:26px 26px;}
     .dm-num{font-family:ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
@@ -245,7 +245,7 @@ export default function Dashboard({
             <button onClick={exportCsv} disabled={learners.length === 0} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, padding: "8px 13px", borderRadius: 10, border: `1px solid ${t.border}`, background: t.surface, color: t.ink, cursor: learners.length === 0 ? "not-allowed" : "pointer", opacity: learners.length === 0 ? 0.5 : 1 }}>
               <Download size={15} /> Export CSV
             </button>
-            <button onClick={downloadPdf} disabled={learners.length === 0} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, padding: "8px 13px", borderRadius: 10, border: "none", background: t.brand, color: "#fff", cursor: learners.length === 0 ? "not-allowed" : "pointer", opacity: learners.length === 0 ? 0.5 : 1 }}>
+            <button onClick={downloadPdf} disabled={learners.length === 0} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 700, padding: "8px 15px", borderRadius: 999, border: "none", background: "var(--accent)", color: "var(--accent-ink)", cursor: learners.length === 0 ? "not-allowed" : "pointer", opacity: learners.length === 0 ? 0.5 : 1 }}>
               <FileText size={15} /> Download PDF
             </button>
           </div>

@@ -12,7 +12,7 @@ const GRADES = ["Year 7", "Year 8", "Year 9", "Year 10", "Year 11", "Year 12"];
 const JOIN_TERMS = [{ v: "", label: "From start (Term 1)" }, { v: "Term 2", label: "Joined Term 2" }, { v: "Term 3", label: "Joined Term 3" }];
 const card: React.CSSProperties = { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, padding: 18, boxShadow: "var(--card-shadow)" };
 const inp: React.CSSProperties = { padding: "9px 11px", borderRadius: 10, border: "1px solid var(--border)", fontSize: 13, boxSizing: "border-box", background: "var(--surface)", color: "var(--ink)" };
-const btn: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 14px", borderRadius: 10, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer" };
+const btn: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 999, border: "none", background: "var(--accent)", color: "var(--accent-ink)", fontWeight: 700, fontSize: 13, cursor: "pointer" };
 
 export default function ClassesPage() {
   const [classes, setClasses] = useState<ClassRow[]>([]);
@@ -76,7 +76,7 @@ export default function ClassesPage() {
   }
 
   return (
-    <div className="page-pad" style={{ maxWidth: 960, margin: "0 auto", fontFamily: "system-ui, sans-serif", color: "var(--ink)" }}>
+    <div className="page-pad" style={{ maxWidth: 960, margin: "0 auto", fontFamily: "var(--font-sans), system-ui, sans-serif", color: "var(--ink)" }}>
       <h1 className="h-page" style={{ marginTop: 0, marginBottom: 4 }}>Classes &amp; learners</h1>
       <p style={{ fontSize: 13, color: "var(--ink-faint)", marginTop: 0, marginBottom: 18 }}>
         Create each arm you teach, then add its learners.

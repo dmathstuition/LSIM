@@ -6,38 +6,45 @@
    The whole app reads these via the `C` palette in components/ui.tsx and via
    var(--*) directly. Dark mode flips them by setting data-theme="dark" on <html>
    (see components/ThemeProvider.tsx). */
+/* D-MATHS brand: royal blue (structure/links) + amber (calls to action) on navy. */
 :root {
-  --bg: #EAEDF4;
-  --grid: rgba(19, 24, 43, 0.05);
+  --bg: #F3F6FC;
+  --grid: rgba(16, 38, 77, 0.05);
   --surface: #FFFFFF;
-  --surface2: #F5F7FB;
-  --border: #E1E5EF;
-  --ink: #13182B;
-  --ink-soft: #576074;
-  --ink-faint: #8B92A4;
-  --brand: #5B43F0;
-  --brand-soft: #ECE9FF;
+  --surface2: #F1F5FB;
+  --border: #E4E9F2;
+  --ink: #142544;
+  --ink-soft: #586781;
+  --ink-faint: #8893A7;
+  --brand: #1F62D4;
+  --brand-soft: #E7EFFC;
+  --accent: #F0A23C;
+  --accent-soft: #FCEEDA;
+  --accent-ink: #142544;
   --good: #1FA97A;
   --warn: #C9A227;
   --bad: #D2353A;
-  --hover: #F1F3F8;
-  --card-shadow: 0 1px 2px rgba(19, 24, 43, 0.05), 0 1px 3px rgba(19, 24, 43, 0.04);
+  --hover: #EDF2FB;
+  --card-shadow: 0 1px 2px rgba(16, 38, 77, 0.05), 0 1px 3px rgba(16, 38, 77, 0.04);
 }
 :root[data-theme="dark"] {
-  --bg: #0B0E18;
+  --bg: #0A1120;
   --grid: rgba(255, 255, 255, 0.04);
-  --surface: #141826;
-  --surface2: #1A1F30;
-  --border: #272D40;
-  --ink: #EDEFF5;
-  --ink-soft: #9BA2B6;
-  --ink-faint: #6B7288;
-  --brand: #8B78FF;
-  --brand-soft: #241E48;
+  --surface: #111A2C;
+  --surface2: #17223A;
+  --border: #25314C;
+  --ink: #EAEEF7;
+  --ink-soft: #9CA8C0;
+  --ink-faint: #6B7794;
+  --brand: #5E8DF0;
+  --brand-soft: #16233E;
+  --accent: #F2A94E;
+  --accent-soft: #2A2012;
+  --accent-ink: #142544;
   --good: #2BB888;
   --warn: #D4B43A;
   --bad: #E0555A;
-  --hover: #1E2436;
+  --hover: #1C2740;
   --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
@@ -47,9 +54,15 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
   background: var(--bg);
   color: var(--ink);
+}
+/* Pill call-to-action, matching the D-MATHS marketing buttons. */
+.btn-cta {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7;
+  border: none; border-radius: 999px; font-weight: 700; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink);
 }
 img, svg { max-width: 100%; }
 
@@ -97,8 +110,9 @@ img, svg { max-width: 100%; }
   /* Always print on a light sheet, even when dark mode is active. */
   :root, :root[data-theme="dark"] {
     --bg: #FFFFFF; --grid: rgba(19,24,43,0.05); --surface: #FFFFFF; --surface2: #F5F7FB;
-    --border: #E1E5EF; --ink: #13182B; --ink-soft: #576074; --ink-faint: #8B92A4;
-    --brand: #5B43F0; --brand-soft: #ECE9FF; --hover: #F1F3F8; --card-shadow: none;
+    --border: #E4E9F2; --ink: #142544; --ink-soft: #586781; --ink-faint: #8893A7;
+    --brand: #1F62D4; --brand-soft: #E7EFFC; --accent: #F0A23C; --accent-ink: #142544;
+    --hover: #EDF2FB; --card-shadow: none;
   }
   /* Hide app chrome and on-screen-only controls. */
   nav, .no-print { display: none !important; }
