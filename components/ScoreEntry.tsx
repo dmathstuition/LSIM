@@ -197,7 +197,7 @@ export default function ScoreEntry({
     return (
       <Wrap>
         <Empty>
-          No arms yet. <Link href="/classes" style={{ color: "#5B43F0", fontWeight: 600 }}>Create a class and add learners</Link> first.
+          No arms yet. <Link href="/classes" style={{ color: "var(--brand)", fontWeight: 600 }}>Create a class and add learners</Link> first.
         </Empty>
       </Wrap>
     );
@@ -224,9 +224,10 @@ export default function ScoreEntry({
             <Upload size={15} /> Import CSV
           </button>
           <button onClick={saveNow} disabled={invalid || status === "saving" || rows.length === 0}
-            style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 10,
-              border: "none", fontWeight: 600, fontSize: 14, cursor: invalid ? "not-allowed" : "pointer",
-              background: status === "saved" && !dirty ? "#1FA97A" : "#5B43F0", color: "#fff",
+            style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 18px", borderRadius: 999,
+              border: "none", fontWeight: 700, fontSize: 14, cursor: invalid ? "not-allowed" : "pointer",
+              background: status === "saved" && !dirty ? "#1FA97A" : "var(--accent)",
+              color: status === "saved" && !dirty ? "#fff" : "var(--accent-ink)",
               opacity: invalid || rows.length === 0 ? 0.5 : 1 }}>
             {status === "saved" && !dirty ? <Check size={16} /> : <Save size={16} />}
             {status === "saving" ? "Saving…" : status === "saved" && !dirty ? "Saved" : "Save all"}
@@ -251,8 +252,8 @@ export default function ScoreEntry({
 
       {importMsg &&
         <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 12, padding: "10px 12px", fontSize: 13,
-          background: "color-mix(in srgb, #5B43F0 9%, transparent)", border: "1px solid color-mix(in srgb, #5B43F0 35%, transparent)", borderRadius: 10, color: "var(--ink)" }}>
-          <Upload size={15} color="#5B43F0" style={{ marginTop: 1, flexShrink: 0 }} />
+          background: "color-mix(in srgb, var(--brand) 9%, transparent)", border: "1px solid color-mix(in srgb, var(--brand) 35%, transparent)", borderRadius: 10, color: "var(--ink)" }}>
+          <Upload size={15} color="var(--brand)" style={{ marginTop: 1, flexShrink: 0 }} />
           <span style={{ flex: 1 }}>{importMsg}</span>
           <button onClick={() => setImportMsg("")} style={{ fontSize: 12, fontWeight: 600, padding: "3px 8px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--ink-soft)", cursor: "pointer" }}>Dismiss</button>
         </div>}
@@ -329,7 +330,7 @@ function SyncStatus({ status, dirty, invalid, savedAt }: { status: string; dirty
   );
 }
 function Wrap({ children }: { children: React.ReactNode }) {
-  return <div className="page-pad" style={{ maxWidth: 940, margin: "0 auto", fontFamily: "system-ui, sans-serif", color: "var(--ink)" }}>{children}</div>;
+  return <div className="page-pad" style={{ maxWidth: 940, margin: "0 auto", fontFamily: "var(--font-sans), system-ui, sans-serif", color: "var(--ink)" }}>{children}</div>;
 }
 function Empty({ children }: { children: React.ReactNode }) {
   return <div style={{ background: "var(--surface)", border: "1px dashed var(--border)", borderRadius: 14, padding: 32, textAlign: "center", color: "var(--ink-faint)", fontSize: 14 }}>{children}</div>;

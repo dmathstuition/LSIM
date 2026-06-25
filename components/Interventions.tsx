@@ -9,7 +9,7 @@ import {
 } from "@/lib/intervention-queries";
 
 const STATUS_COLOR: Record<ProgressStatus, string> = {
-  "Not Started": C.inkFaint, "Ongoing": "#5B43F0", "Improved": C.good, "Needs Further Support": "#E0701E",
+  "Not Started": C.inkFaint, "Ongoing": "var(--brand)", "Improved": C.good, "Needs Further Support": "#E0701E",
 };
 
 export default function Interventions({

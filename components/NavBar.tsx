@@ -30,8 +30,12 @@ const BRAND = "var(--brand)", INK = "var(--ink-soft)", ACTIVE_BG = "var(--brand-
 
 function Brand() {
   return (
-    <div style={{ fontFamily: "ui-monospace, monospace", fontWeight: 700, fontSize: 16, whiteSpace: "nowrap" }}>
-      d<span style={{ color: BRAND }}>maths</span>
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="11" cy="13" r="7.4" stroke="var(--brand)" strokeWidth="2.4" />
+        <circle cx="18.5" cy="6" r="2.6" fill="var(--accent)" />
+      </svg>
+      <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: ".06em", color: "var(--ink)" }}>D-MATHS</span>
     </div>
   );
 }
@@ -70,7 +74,7 @@ export default function NavBar() {
     boxShadow: "var(--card-shadow)",
   };
   const signOutBtn: React.CSSProperties = {
-    display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 9,
+    display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 999,
     fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
     border: "1px solid var(--border)", background: "var(--surface)", color: INK,
   };

@@ -10,6 +10,7 @@ import React from "react";
 // global light/dark theme. These resolve at render time in inline styles.
 export const C = {
   brand: "var(--brand)", brandSoft: "var(--brand-soft)",
+  accent: "var(--accent)", accentSoft: "var(--accent-soft)", accentInk: "var(--accent-ink)",
   ink: "var(--ink)", inkSoft: "var(--ink-soft)", inkFaint: "var(--ink-faint)",
   bg: "var(--bg)", surface: "var(--surface)", surface2: "var(--surface2)", border: "var(--border)",
   good: "var(--good)", warn: "var(--warn)", bad: "var(--bad)",
@@ -25,10 +26,11 @@ export const bandColor = (t: number) => (BANDS.find((b) => t >= b.min) ?? BANDS[
 
 export const card: React.CSSProperties = { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18, boxShadow: "var(--card-shadow)" };
 export const inp: React.CSSProperties = { padding: "9px 11px", borderRadius: 10, border: `1px solid ${C.border}`, fontSize: 13, boxSizing: "border-box", background: C.surface, color: C.ink };
-export const btn: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 14px", borderRadius: 10, border: "none", background: C.brand, color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer" };
+// Primary call-to-action: amber pill with navy text (the D-MATHS button style).
+export const btn: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 999, border: "none", background: C.accent, color: C.accentInk, fontWeight: 700, fontSize: 13, cursor: "pointer" };
 
 export function Wrap({ children, max = 1040 }: { children: React.ReactNode; max?: number }) {
-  return <div className="page-pad" style={{ maxWidth: max, margin: "0 auto", fontFamily: "system-ui, sans-serif", color: C.ink }}>{children}</div>;
+  return <div className="page-pad" style={{ maxWidth: max, margin: "0 auto", fontFamily: "var(--font-sans), system-ui, sans-serif", color: C.ink }}>{children}</div>;
 }
 export function PageHead({ title, sub, right }: { title: string; sub?: string; right?: React.ReactNode }) {
   return (
