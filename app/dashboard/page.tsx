@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Dashboard from "@/components/Dashboard";
-import { getLearners, getScoreTrend, getAttendanceTrend, getScorePeriods, type LearnerRow, type TrendPoint } from "@/lib/dashboard-queries";
+import { getDashboardRaw, computeLearners, computeScoreTrend, getAttendanceTrend, getScorePeriods, type DashboardRaw } from "@/lib/dashboard-queries";
 import { getOverdueFollowups, type OverdueFollowup } from "@/lib/intervention-queries";
 import { getClasses, getSubjects } from "@/lib/classes";
 import { createClient } from "@/lib/supabase/client";
 
 export default function DashboardPage() {
-  const [learners, setLearners] = useState<LearnerRow[]>([]);
+  const [raw, setRaw] = useState<DashboardRaw | null>(null);
   const [classes, setClasses] = useState<{ id: string; label: string }[]>([]);
   const [subjects, setSubjects] = useState<{ id: string; label: string }[]>([]);
   const [terms, setTerms] = useState<string[]>([]);
@@ -17,7 +17,6 @@ export default function DashboardPage() {
   const [subject, setSubject] = useState("all");
   const [term, setTerm] = useState("all");
   const [session, setSession] = useState("all");
-  const [trend, setTrend] = useState<TrendPoint[]>([]);
   const [att, setAtt] = useState<{ w: string; v: number }[]>([]);
   const [overdue, setOverdue] = useState<OverdueFollowup[]>([]);
   const [email, setEmail] = useState<string | undefined>();
@@ -36,18 +35,23 @@ export default function DashboardPage() {
     })().catch((e) => { console.error(e); setLoading(false); });
   }, []);
 
+  // Fetch the arm's raw data once; attendance trend & overdue depend only on the
+  // arm. Subject/term/session filtering is done in-memory below (no refetch).
   useEffect(() => {
-    (async () => {
-      const cid = sel === "all" ? undefined : sel;
-      const scope = {
-        subjectId: subject === "all" ? undefined : subject,
-        term: term === "all" ? undefined : term,
-        session: session === "all" ? undefined : session,
-      };
-      const [l, tr, at, ov] = await Promise.all([getLearners(cid, scope), getScoreTrend(cid, scope), getAttendanceTrend(cid), getOverdueFollowups(cid)]);
-      setLearners(l); setTrend(tr); setAtt(at); setOverdue(ov);
-    })().catch(console.error);
-  }, [sel, subject, term, session]);
+    const cid = sel === "all" ? undefined : sel;
+    Promise.all([getDashboardRaw(cid), getAttendanceTrend(cid), getOverdueFollowups(cid)])
+      .then(([r, at, ov]) => { setRaw(r); setAtt(at); setOverdue(ov); })
+      .catch(console.error);
+  }, [sel]);
+
+  const scope = useMemo(() => ({
+    subjectId: subject === "all" ? undefined : subject,
+    term: term === "all" ? undefined : term,
+    session: session === "all" ? undefined : session,
+  }), [subject, term, session]);
+
+  const learners = useMemo(() => (raw ? computeLearners(raw, scope) : []), [raw, scope]);
+  const trend = useMemo(() => (raw ? computeScoreTrend(raw.scores, scope) : []), [raw, scope]);
 
   if (loading) return <div style={{ padding: 40, textAlign: "center", color: "var(--ink-faint)" }}>Loading…</div>;
 

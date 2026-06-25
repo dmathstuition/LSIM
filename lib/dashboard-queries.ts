@@ -42,68 +42,80 @@ export async function getScorePeriods(): Promise<{ sessions: string[]; terms: st
   return { sessions, terms };
 }
 
-/**
- * All of the teacher's learners (RLS-scoped), optionally narrowed to one class.
- *
- * `scope` re-scopes only the academic fields: when a subject, term or session is
- * given, each learner's `avg` and `comp` come from the matching `score_report`
- * rows (and `hasScore` is true only for learners with marks in that scope). The
- * whole-child early-warning fields — `attendance`, `missing`, `level`,
- * `declining` — always come from `learner_risk_level`, which is computed across
- * all subjects/terms (attendance & assignments are not term-scoped in the schema).
- */
-export async function getLearners(classId?: string, scope: ScoreScope = {}): Promise<LearnerRow[]> {
-  const { subjectId, term, session } = scope;
-  const academicScoped = Boolean(subjectId || term || session);
-  let q = supabase.from("learner_risk_level")
-    .select("learner_id, fullname, class_id, avg_total, attendance_pct, missing_assignments, risk_level, score_delta");
-  if (classId) q = q.eq("class_id", classId);
-  const { data, error } = await q;
-  if (error) throw error;
+// Whole-child early-warning fields for one learner (from learner_risk_level).
+export interface RawLearner {
+  id: string; name: string; adm: string; gender: string | null;
+  avg_total: number; attendance_pct: number; missing: number; level: RiskLevel; declining: boolean;
+}
+// One score_report row (component marks per subject/term/session).
+export interface RawScore {
+  learner_id: string; subject_id: string; term: string; session: string;
+  first_ca: number; second_ca: number; exam: number; total: number;
+}
+/** Everything the dashboard needs for one arm — fetched ONCE, then filtered by
+ *  subject/term/session entirely in the browser (no refetch per dropdown). */
+export interface DashboardRaw { learners: RawLearner[]; scores: RawScore[]; }
 
-  const ids = (data ?? []).map((r: any) => r.learner_id);
+/**
+ * Fetch the dashboard's raw data for an arm (or all arms) in three parallel
+ * queries. The per-subject/term/session views are derived client-side from this
+ * by computeLearners / computeScoreTrend, so changing a filter never hits the DB.
+ */
+export async function getDashboardRaw(classId?: string): Promise<DashboardRaw> {
+  let riskQ = supabase.from("learner_risk_level")
+    .select("learner_id, fullname, avg_total, attendance_pct, missing_assignments, risk_level, score_delta");
+  let learnersQ = supabase.from("learners").select("id, admission_number, gender");
+  let scoresQ = supabase.from("score_report").select("learner_id, subject_id, term, session, first_ca, second_ca, exam, total");
+  if (classId) { riskQ = riskQ.eq("class_id", classId); learnersQ = learnersQ.eq("class_id", classId); scoresQ = scoresQ.eq("class_id", classId); }
+
+  const [riskRes, lRes, sRes] = await Promise.all([riskQ, learnersQ, scoresQ]);
+  if (riskRes.error) throw riskRes.error;
+  if (lRes.error) throw lRes.error;
+  if (sRes.error) throw sRes.error;
+
   const admMap = new Map<string, string>();
   const genderMap = new Map<string, string | null>();
-  const compMap = new Map<string, ComponentPct>();
-  const scopedAvg = new Map<string, number>();   // mean total within the scope
-  if (ids.length) {
-    const { data: ls } = await supabase.from("learners").select("id, admission_number, gender").in("id", ids);
-    (ls ?? []).forEach((l: any) => { admMap.set(l.id, l.admission_number); genderMap.set(l.id, l.gender ?? null); });
+  (lRes.data ?? []).forEach((l: any) => { admMap.set(l.id, l.admission_number); genderMap.set(l.id, l.gender ?? null); });
 
-    // Per-component averages come from the raw component marks in score_report,
-    // optionally narrowed to a subject / term / session.
-    let sq = supabase.from("score_report").select("learner_id, first_ca, second_ca, exam, total, class_id");
-    if (classId) sq = sq.eq("class_id", classId);
-    if (subjectId) sq = sq.eq("subject_id", subjectId);
-    if (term) sq = sq.eq("term", term);
-    if (session) sq = sq.eq("session", session);
-    const { data: sr } = await sq;
-    const byLearner = new Map<string, any[]>();
-    (sr ?? []).forEach((r: any) => {
-      const arr = byLearner.get(r.learner_id) ?? [];
-      arr.push(r); byLearner.set(r.learner_id, arr);
-    });
-    byLearner.forEach((rows, lid) => {
-      compMap.set(lid, componentAverages(rows));
-      scopedAvg.set(lid, rows.reduce((s, r) => s + r.total, 0) / rows.length);
-    });
+  const learners: RawLearner[] = (riskRes.data ?? []).map((r: any) => ({
+    id: r.learner_id, name: r.fullname, adm: admMap.get(r.learner_id) ?? "", gender: genderMap.get(r.learner_id) ?? null,
+    avg_total: r.avg_total ?? 0, attendance_pct: r.attendance_pct ?? 0, missing: r.missing_assignments ?? 0,
+    level: (r.risk_level ?? "Low") as RiskLevel, declining: (r.score_delta ?? 0) <= -5,
+  }));
+  const scores: RawScore[] = (sRes.data ?? []).map((s: any) => ({
+    learner_id: s.learner_id, subject_id: s.subject_id, term: s.term, session: s.session,
+    first_ca: s.first_ca, second_ca: s.second_ca, exam: s.exam, total: s.total,
+  }));
+  return { learners, scores };
+}
+
+/** Per-learner rows for the current scope — pure, derived from DashboardRaw.
+ *  When a subject/term/session is selected, `avg`/`comp`/`hasScore` come from the
+ *  matching score rows; otherwise from the learner's all-time `avg_total`. The
+ *  whole-child fields (attendance/missing/level/declining) are always all-time. */
+export function computeLearners(raw: DashboardRaw, scope: ScoreScope = {}): LearnerRow[] {
+  const { subjectId, term, session } = scope;
+  const academicScoped = Boolean(subjectId || term || session);
+  const byLearner = new Map<string, RawScore[]>();
+  for (const s of raw.scores) {
+    if (subjectId && s.subject_id !== subjectId) continue;
+    if (term && s.term !== term) continue;
+    if (session && s.session !== session) continue;
+    const arr = byLearner.get(s.learner_id);
+    if (arr) arr.push(s); else byLearner.set(s.learner_id, [s]);
   }
   const emptyComp: ComponentPct = { total: 0, first_ca: 0, second_ca: 0, exam: 0 };
-  return (data ?? []).map((r: any) => {
-    const hasScore = compMap.has(r.learner_id);
-    // Within a scope the academic average is that scope's mean total (max = 100,
-    // so already a %); otherwise the all-time avg from the early-warning view.
+  return raw.learners.map((l) => {
+    const rows = byLearner.get(l.id) ?? [];
     const avg = academicScoped
-      ? Math.round(scopedAvg.get(r.learner_id) ?? 0)
-      : Math.round(r.avg_total ?? 0);
+      ? (rows.length ? Math.round(rows.reduce((a, r) => a + r.total, 0) / rows.length) : 0)
+      : Math.round(l.avg_total);
     return {
-      id: r.learner_id, adm: admMap.get(r.learner_id) ?? "", name: r.fullname,
-      gender: genderMap.get(r.learner_id) ?? null,
-      avg, attendance: Math.round(r.attendance_pct ?? 0),
-      missing: r.missing_assignments ?? 0, level: (r.risk_level ?? "Low") as RiskLevel,
-      declining: (r.score_delta ?? 0) <= -5,
-      comp: compMap.get(r.learner_id) ?? emptyComp,
-      hasScore,
+      id: l.id, adm: l.adm, name: l.name, gender: l.gender,
+      avg, attendance: Math.round(l.attendance_pct), missing: l.missing,
+      level: l.level, declining: l.declining,
+      comp: rows.length ? componentAverages(rows) : emptyComp,
+      hasScore: rows.length > 0,
     };
   });
 }
@@ -115,18 +127,15 @@ export function getKpis(rows: LearnerRow[]) {
 export interface TrendPoint { term: string; total: number; first_ca: number; second_ca: number; exam: number; }
 
 // The trend deliberately spans terms (that's its point), so `term` is ignored
-// here; a selected `session` still narrows it to one academic year.
-export async function getScoreTrend(classId?: string, scope: ScoreScope = {}): Promise<TrendPoint[]> {
+// here; a selected `session` still narrows it to one academic year. Pure: derived
+// from the already-fetched DashboardRaw scores.
+export function computeScoreTrend(scores: RawScore[], scope: ScoreScope = {}): TrendPoint[] {
   const { subjectId, session } = scope;
-  let q = supabase.from("score_report").select("term, first_ca, second_ca, exam, total, class_id");
-  if (classId) q = q.eq("class_id", classId);
-  if (subjectId) q = q.eq("subject_id", subjectId);
-  if (session) q = q.eq("session", session);
-  const { data, error } = await q;
-  if (error) throw error;
   type Acc = { total: number; first_ca: number; second_ca: number; exam: number; n: number };
   const byTerm: Record<string, Acc> = {};
-  for (const r of data ?? []) {
+  for (const r of scores) {
+    if (subjectId && r.subject_id !== subjectId) continue;
+    if (session && r.session !== session) continue;
     const b = (byTerm[r.term] ??= { total: 0, first_ca: 0, second_ca: 0, exam: 0, n: 0 });
     b.total += r.total; b.first_ca += r.first_ca; b.second_ca += r.second_ca; b.exam += r.exam; b.n += 1;
   }
