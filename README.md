@@ -12,12 +12,27 @@ assignments, interventions — plus printable reports and a supervisor role.
    `migration_trend.sql` (declining-trend early-warning signal),
    `migration_subjects.sql` (lets you rename/delete subjects),
    `migration_enrollment.sql` → `migration_join_term.sql` →
-   `migration_join_term_analysis.sql` (mid-term joiners — see §below).
+   `migration_join_term_analysis.sql` (mid-term joiners — see §below),
+   `migration_team_roles.sql` (in-app role management — see §Accounts).
 3. Storage → create a **private** bucket named `evidence`, then run
    `migration_evidence_storage.sql` (own-files read/write/delete policies for
    the Weekly tracker uploads).
-4. Authentication → add yourself a user (email + password), or enable signups.
+4. Authentication → add yourself a user (email + password), or let teachers
+   self-register on the login page (see §Accounts).
 5. The `migration_setup.sql` trigger creates your `profiles` row automatically.
+
+## Accounts, sign-up & roles
+The app is multi-teacher: every teacher gets their own login and, thanks to RLS,
+sees only their own data. The Supabase free tier handles this easily (up to
+50,000 monthly auth users, 500 MB DB).
+
+- **Self-registration:** the login page has a **Create account** form. To stop
+  strangers registering, set `NEXT_PUBLIC_SIGNUP_CODE` (env) to a shared invite
+  code — when set, the form requires it. Leave it unset for open sign-up.
+- **Roles:** run `migration_team_roles.sql`, then promote your first admin once by
+  hand — `update profiles set role='admin' where email='you@example.com';` — and
+  thereafter manage everyone from **Settings → Team & roles** (teacher /
+  supervisor / admin). Supervisor & admin get the cross-teacher **Oversight** view.
 
 ## 2. App
 ```bash

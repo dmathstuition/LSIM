@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { UserCog, KeyRound, Check, AlertCircle } from "lucide-react";
+import { UserCog, KeyRound, Check, AlertCircle, Shield } from "lucide-react";
 import { C, card, inp, btn, Wrap, PageHead, Empty, Chip } from "@/components/ui";
-import { getProfile, updateProfile, updatePassword, type Profile } from "@/lib/profile";
+import { getProfile, updateProfile, updatePassword, listTeam, setRole, type Profile, type TeamMember } from "@/lib/profile";
 
 const ROLE_COLOR: Record<string, string> = { teacher: C.brand, supervisor: "#1FA97A", admin: "#E0701E" };
+const ROLES: ("teacher" | "supervisor" | "admin")[] = ["teacher", "supervisor", "admin"];
 
 export default function Settings() {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -16,14 +17,22 @@ export default function Settings() {
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [savingP, setSavingP] = useState(false);
   const [savingPw, setSavingPw] = useState(false);
+  const [team, setTeam] = useState<TeamMember[]>([]);
 
   useEffect(() => {
     getProfile().then((p) => {
       setProfile(p);
       setFullname(p?.fullname ?? "");
       setDepartment(p?.department ?? "");
+      if (p?.role === "admin") listTeam().then(setTeam).catch(() => {});
     }).catch((e) => setMsg({ kind: "err", text: e.message }));
   }, []);
+
+  async function changeRole(id: string, role: "teacher" | "supervisor" | "admin") {
+    setMsg(null);
+    try { await setRole(id, role); setTeam(await listTeam()); setMsg({ kind: "ok", text: "Role updated." }); }
+    catch (e: any) { setMsg({ kind: "err", text: `${e.message} — did you run migration_team_roles.sql?` }); }
+  }
 
   async function saveProfile() {
     if (!fullname.trim()) { setMsg({ kind: "err", text: "Name can't be empty." }); return; }
@@ -77,6 +86,33 @@ export default function Settings() {
           </button>
         </div>
       </div>
+
+      {profile.role === "admin" && (
+        <div style={{ ...card, marginTop: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7, fontWeight: 700, marginBottom: 4 }}>
+            <Shield size={17} color={C.brand} /> Team &amp; roles
+          </div>
+          <div style={{ fontSize: 12, color: C.inkFaint, marginBottom: 14 }}>
+            Set who can see across all teachers. <strong>Supervisor</strong> &amp; <strong>Admin</strong> get the Oversight view; only admins can change roles.
+          </div>
+          {team.length === 0 ? <Empty>No other accounts yet — invite teachers from the login page.</Empty> : (
+            <div style={{ display: "grid", gap: 8 }}>
+              {team.map((m) => (
+                <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", border: `1px solid ${C.border}`, borderRadius: 10, padding: "9px 12px" }}>
+                  <div style={{ flex: 1, minWidth: 150 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{m.fullname || m.email}{m.id === profile.id && <span style={{ color: C.inkFaint, fontWeight: 500 }}> · you</span>}</div>
+                    <div style={{ fontSize: 12, color: C.inkFaint }}>{m.email}</div>
+                  </div>
+                  <select value={m.role} onChange={(e) => changeRole(m.id, e.target.value as any)}
+                    style={{ ...inp, fontWeight: 600, cursor: "pointer", width: 140 }}>
+                    {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </Wrap>
   );
 }
