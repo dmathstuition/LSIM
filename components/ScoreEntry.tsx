@@ -6,6 +6,7 @@ import { Save, Check, AlertCircle, Cloud, CloudOff, Loader2, Upload, FileDown } 
 import { draftKey, loadDraft, saveDraft, clearDraft, loadSelection, saveSelection } from "@/lib/draft";
 import { parseCsv, toCsv, downloadCsv } from "@/lib/csv";
 import { applyCsvScores } from "@/lib/score-import";
+import { currentSession, sessionOptions } from "@/lib/sessions";
 
 const CAP = { first_ca: 20, second_ca: 20, exam: 60 };
 const TOTAL_MAX = CAP.first_ca + CAP.second_ca + CAP.exam;
@@ -17,7 +18,7 @@ const BANDS = [
 const bandColor = (t: number) => (BANDS.find((b) => t >= b.min) ?? BANDS[BANDS.length - 1]).c;
 // Current academic period — used when no prior selection is remembered.
 const DEFAULT_TERM = "Term 3";
-const DEFAULT_SESSION = "2025/2026";
+const DEFAULT_SESSION = currentSession();
 
 export interface Row { learner_id: string; adm: string; name: string; first_ca: number; second_ca: number; exam: number; }
 export interface Opt { id: string; label: string; }
@@ -239,7 +240,7 @@ export default function ScoreEntry({
         <Sel label="Arm" value={arm} set={setArm} opts={arms} />
         <Sel label="Subject" value={subject} set={setSubject} opts={subjects} />
         <Sel label="Term" value={term} set={setTerm} opts={[{ id: "Term 1", label: "Term 1" }, { id: "Term 2", label: "Term 2" }, { id: "Term 3", label: "Term 3" }]} />
-        <Sel label="Session" value={session} set={setSession} opts={[{ id: "2024/2025", label: "2024/2025" }, { id: "2025/2026", label: "2025/2026" }]} />
+        <Sel label="Session" value={session} set={setSession} opts={sessionOptions([session])} />
       </div>
 
       {restored &&

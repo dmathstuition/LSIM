@@ -6,9 +6,9 @@ import { Printer, Download } from "lucide-react";
 import { C, Wrap, PageHead, Empty, Sel, bandColor, type Opt } from "@/components/ui";
 import type { BroadsheetData } from "@/lib/report-queries";
 import { toCsv, downloadCsv } from "@/lib/csv";
+import { currentSession, sessionOptions } from "@/lib/sessions";
 
 const TERMS: Opt[] = [{ id: "Term 1", label: "Term 1" }, { id: "Term 2", label: "Term 2" }, { id: "Term 3", label: "Term 3" }];
-const SESSIONS: Opt[] = [{ id: "2024/2025", label: "2024/2025" }, { id: "2025/2026", label: "2025/2026" }];
 
 export default function Broadsheet({
   arms, load,
@@ -18,7 +18,7 @@ export default function Broadsheet({
 }) {
   const [arm, setArm] = useState(arms[0]?.id ?? "");
   const [term, setTerm] = useState("Term 2");
-  const [session, setSession] = useState("2024/2025");
+  const [session, setSession] = useState(currentSession());
   const [data, setData] = useState<BroadsheetData | null>(null);
 
   useEffect(() => { setArm(arms[0]?.id ?? ""); }, [arms]);
@@ -60,7 +60,7 @@ export default function Broadsheet({
       <div className="no-print" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
         <Sel label="Arm" value={arm} set={setArm} opts={arms} />
         <Sel label="Term" value={term} set={setTerm} opts={TERMS} />
-        <Sel label="Session" value={session} set={setSession} opts={SESSIONS} />
+        <Sel label="Session" value={session} set={setSession} opts={sessionOptions([session])} />
       </div>
 
       <div className="print-only" style={{ marginBottom: 12 }}>

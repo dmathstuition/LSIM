@@ -8,9 +8,9 @@ import {
   getWeeklyEntries, upsertWeeklyEntry, listEvidence, uploadEvidence, signedUrl, deleteEvidence,
   type WeeklyEntry, type EvidenceFile,
 } from "@/lib/weekly-queries";
+import { currentSession, sessionOptions } from "@/lib/sessions";
 
 const TERMS: Opt[] = [{ id: "Term 1", label: "Term 1" }, { id: "Term 2", label: "Term 2" }, { id: "Term 3", label: "Term 3" }];
-const SESSIONS: Opt[] = [{ id: "2024/2025", label: "2024/2025" }, { id: "2025/2026", label: "2025/2026" }];
 
 const FIELDS: { key: keyof WeeklyEntry; label: string; area?: boolean }[] = [
   { key: "topic", label: "Topic" },
@@ -25,7 +25,7 @@ export default function WeeklyTracker({ arms, subjects }: { arms: Opt[]; subject
   const [arm, setArm] = useState(arms[0]?.id ?? "");
   const [subject, setSubject] = useState(subjects[0]?.id ?? "");
   const [term, setTerm] = useState("Term 2");
-  const [session, setSession] = useState("2024/2025");
+  const [session, setSession] = useState(currentSession());
   const [entries, setEntries] = useState<WeeklyEntry[]>([]);
   const [adding, setAdding] = useState(false);
   const [msg, setMsg] = useState("");
@@ -65,7 +65,7 @@ export default function WeeklyTracker({ arms, subjects }: { arms: Opt[]; subject
         <Sel label="Arm" value={arm} set={setArm} opts={arms} />
         {subjects.length > 0 && <Sel label="Subject" value={subject} set={setSubject} opts={subjects} />}
         <Sel label="Term" value={term} set={setTerm} opts={TERMS} />
-        <Sel label="Session" value={session} set={setSession} opts={SESSIONS} />
+        <Sel label="Session" value={session} set={setSession} opts={sessionOptions([session])} />
       </div>
       {msg && <div style={{ fontSize: 13, color: C.bad, marginBottom: 12 }}>{msg}</div>}
 
