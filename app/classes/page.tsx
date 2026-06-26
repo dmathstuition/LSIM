@@ -6,6 +6,7 @@ import {
   ensureProfile, getClasses, createClass, getLearnersBasic, bulkAddLearners,
   deleteClass, deleteLearner, updateLearnerJoin, type ClassRow, type LearnerBasic,
 } from "@/lib/classes";
+import { currentSession } from "@/lib/sessions";
 
 const GRADES = ["Year 7", "Year 8", "Year 9", "Year 10", "Year 11", "Year 12"];
 // Mid-term joiner options. "" = present from the start (Term 1).
@@ -20,7 +21,7 @@ export default function ClassesPage() {
   const [learners, setLearners] = useState<LearnerBasic[]>([]);
   const [grade, setGrade] = useState(GRADES[0]);
   const [arm, setArm] = useState("A");
-  const [year, setYear] = useState("2024/2025");
+  const [year, setYear] = useState(currentSession());
   const [adm, setAdm] = useState("");
   const [name, setName] = useState("");
   const [joined, setJoined] = useState("");   // "" = from start; else "Term 2"/"Term 3"
@@ -94,7 +95,7 @@ export default function ClassesPage() {
               {GRADES.map((g) => <option key={g} value={g}>{g}</option>)}
             </select>
             <input style={inp} placeholder="Arm (e.g. A)" value={arm} onChange={(e) => setArm(e.target.value)} />
-            <input style={inp} placeholder="Session (e.g. 2024/2025)" value={year} onChange={(e) => setYear(e.target.value)} />
+            <input style={inp} placeholder="Session (e.g. 2025/2026)" value={year} onChange={(e) => setYear(e.target.value)} />
             <button style={btn} onClick={addArm}><FolderPlus size={15} /> Create arm</button>
           </div>
           <div style={{ marginTop: 16, fontSize: 12, fontWeight: 600, color: "var(--ink-faint)", textTransform: "uppercase", letterSpacing: ".05em" }}>Your arms</div>
