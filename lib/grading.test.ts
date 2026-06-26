@@ -13,9 +13,10 @@ describe("joinedAfter — lexical join-term compare", () => {
     expect(joinedAfter("2024/2025", "Term 2", "2024/2025", "Term 2")).toBe(false);
     expect(joinedAfter("2024/2025", "Term 2", "2024/2025", "Term 3")).toBe(false);
   });
-  it("respects session ordering", () => {
-    expect(joinedAfter("2025/2026", "Term 1", "2024/2025", "Term 3")).toBe(true);
-    expect(joinedAfter("2024/2025", "Term 1", "2025/2026", "Term 1")).toBe(false);
+  it("compares by term only, ignoring the session label", () => {
+    // join recorded under a different session than the score is still excluded by term
+    expect(joinedAfter("2024/2025", "Term 2", "2025/2026", "Term 1")).toBe(true);
+    expect(joinedAfter("2024/2025", "Term 2", "2025/2026", "Term 2")).toBe(false);
   });
 });
 

@@ -72,12 +72,16 @@ export function riskLevel(score: number): RiskLevel {
   return "Low";
 }
 
-/** Did a learner who joined at (js, jt) start AFTER the given (session, term)?
- *  NULL join term = present from the start. Lexical compare ("2024/2025" <
- *  "2025/2026", "Term 1" < "Term 2"), matching the SQL join-term exemption. */
-export function joinedAfter(js: string | null, jt: string | null, session: string, term: string): boolean {
+/** Did a learner who joined in `jt` start AFTER the given term?
+ *
+ *  Compared by TERM ONLY (session is ignored). The school works term-by-term and
+ *  a teacher records the join as a plain term ("Term 2"); the session label on a
+ *  score can differ from the arm's academic year (e.g. score entered under
+ *  "2025/2026" while the arm/join is "2024/2025"), so a session-aware compare
+ *  would let an earlier-term mark slip through. NULL join term = present from the
+ *  start. ("Term 1" < "Term 2" < "Term 3"). */
+export function joinedAfter(_js: string | null, jt: string | null, _session: string, term: string): boolean {
   if (!jt) return false;
-  if (js) return js > session || (js === session && jt > term);
   return jt > term;
 }
 
