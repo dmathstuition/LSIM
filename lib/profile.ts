@@ -32,3 +32,19 @@ export async function updatePassword(password: string) {
   const { error } = await supabase.auth.updateUser({ password });
   if (error) throw error;
 }
+
+export interface TeamMember { id: string; fullname: string; email: string; role: string; }
+
+/** All users (admin-only via RLS). Returns just the caller's row for non-admins. */
+export async function listTeam(): Promise<TeamMember[]> {
+  const { data, error } = await supabase
+    .from("profiles").select("id, fullname, email, role").order("fullname");
+  if (error) throw error;
+  return (data ?? []) as TeamMember[];
+}
+
+/** Set a user's role (admin-only — needs migration_team_roles.sql). */
+export async function setRole(id: string, role: "teacher" | "supervisor" | "admin") {
+  const { error } = await supabase.from("profiles").update({ role }).eq("id", id);
+  if (error) throw error;
+}
