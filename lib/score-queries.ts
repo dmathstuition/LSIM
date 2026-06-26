@@ -15,12 +15,11 @@ export interface EntryRow {
   exam: number;
 }
 
-/** True if a learner who joined at (js, jt) is present by the time (session, term).
- *  NULL join = present from the start. Lexical compare matches the trend view's
- *  ordering ("2024/2025" < "2025/2026", "Term 1" < "Term 2"). */
-function joinedBy(js: string | null, jt: string | null, session: string, term: string): boolean {
-  if (!js || !jt) return true;
-  if (js !== session) return js < session;
+/** True if a learner who joined in `jt` is present by the given term. Compared by
+ *  term only (session ignored — a teacher records the join as a plain term, which
+ *  may not share the score's session label). NULL join term = present from start. */
+function joinedBy(_js: string | null, jt: string | null, _session: string, term: string): boolean {
+  if (!jt) return true;
   return jt <= term;
 }
 

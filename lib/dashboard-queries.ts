@@ -53,17 +53,13 @@ export interface RawLearner {
   joined_session: string | null; joined_term: string | null;
 }
 
-/** True if the learner joined strictly AFTER the selected term/session — i.e. they
- *  were not part of the class yet, so they should be excluded from that view
- *  entirely (a Term-2 joiner must not appear in any Term-1 analysis). NULL join =
- *  present from the start. Lexical compare matches getEntryRows / the score views. */
-function joinedAfterScope(js: string | null, jt: string | null, scope: ScoreScope): boolean {
-  if (!jt) return false;                                   // present from the start
-  const { term, session } = scope;
-  if (session && term) return (js ?? "") > session || ((js ?? "") === session && jt > term);
-  if (session) return (js ?? "") > session;
-  if (term) return jt > term;                              // single-year view: compare term only
-  return false;                                            // no term/session picked → whole cohort
+/** True if the learner joined AFTER the selected term — so they weren't in the
+ *  class yet and must be excluded from that term's view entirely (a Term-2 joiner
+ *  must not appear in any Term-1 analysis). Compared by term only (see
+ *  grading.joinedAfter); NULL join term = present from the start. */
+function joinedAfterScope(_js: string | null, jt: string | null, scope: ScoreScope): boolean {
+  if (!jt || !scope.term) return false;
+  return jt > scope.term;
 }
 // One score_report row (component marks per subject/term/session).
 export interface RawScore {
