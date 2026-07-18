@@ -61,6 +61,7 @@ export default function Dashboard({
   const [perfMode, setPerfMode] = useState<"top" | "bottom">("top");
   const [metric, setMetric] = useState<ScoreComponent>("total");
   const [groupBy, setGroupBy] = useState<"gender" | "sen" | "residency" | "origin">("gender");
+  const [schoolName, setSchoolName] = useState("");
   const t = THEMES[theme];
 
   const subjectLabel = selectedSubject === "all" ? "All subjects" : (subjects.find((s) => s.id === selectedSubject)?.label ?? "All subjects");
@@ -212,16 +213,20 @@ export default function Dashboard({
     return out;
   }, [scored, byGender, breakdown, k, ranked, metric, scoreTrend]);
 
-  // Print to PDF. Force light colours first (inline chart colours don't adapt to
-  // an @media print rule), then restore the user's theme afterwards.
+  // Print to PDF. Ask for the school name (printed as the report header) the first
+  // time, then force light colours (inline chart colours don't adapt to @media
+  // print), let the header render, print, and restore the theme.
   function downloadPdf() {
     if (typeof window === "undefined") return;
-    if (theme === "dark") {
-      setTheme("light");
-      setTimeout(() => { window.print(); setTheme("dark"); }, 200);
-    } else {
-      window.print();
-    }
+    let name = schoolName;
+    const entered = window.prompt("School name to print on this report:", schoolName || "");
+    if (entered === null) return;                 // cancelled
+    name = entered.trim();
+    setSchoolName(name);
+    const dark = theme === "dark";
+    if (dark) setTheme("light");
+    // Delay lets React render the name header (and the light theme) before printing.
+    setTimeout(() => { window.print(); if (dark) setTheme("dark"); }, dark ? 250 : 80);
   }
 
   function exportCsv() {
@@ -253,11 +258,13 @@ export default function Dashboard({
     .dm-td{padding:11px 0;font-size:14px;}
     .dm-chip{font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;}
     .dm-printonly{display:none;}
+    .dm-printhead{display:none;}
     @media print {
       .dm-root{background:#fff !important;background-image:none !important;min-height:auto !important;}
       .dm-card{box-shadow:none !important;break-inside:avoid;page-break-inside:avoid;}
       section{break-inside:avoid;}
       .dm-printonly{display:block;font-size:11px;color:#576074;margin-top:3px;}
+      .dm-printhead{display:block;text-align:center;color:#13182B;border-bottom:2px solid #13182B;padding-bottom:10px;margin-bottom:16px;}
     }
   `;
 
@@ -290,6 +297,13 @@ export default function Dashboard({
     <div className="dm-root" data-theme={theme}>
       <style>{css}</style>
       <div style={{ maxWidth: 1180, margin: "0 auto", padding: "22px 20px 60px" }}>
+        {/* Print-only report header (school name from the PDF prompt). */}
+        <div className="dm-printhead">
+          <div style={{ fontSize: 22, fontWeight: 800 }}>{schoolName || "Performance Report"}</div>
+          <div style={{ fontSize: 12, marginTop: 3 }}>
+            {schoolName ? "Performance Report · " : ""}{subjectLabel} · {periodLabel} · Generated {new Date().toLocaleDateString()}
+          </div>
+        </div>
         <header style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <div>
             <div style={{ fontSize: 18, fontWeight: 700 }}>Dashboard</div>
