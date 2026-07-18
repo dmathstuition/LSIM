@@ -4,13 +4,19 @@ import { useEffect, useState } from "react";
 import { UserPlus, FolderPlus, Upload, Trash2 } from "lucide-react";
 import {
   ensureProfile, getClasses, createClass, getLearnersBasic, bulkAddLearners,
-  deleteClass, deleteLearner, updateLearnerJoin, type ClassRow, type LearnerBasic,
+  deleteClass, deleteLearner, updateLearnerJoin, updateLearnerAttrs, type ClassRow, type LearnerBasic,
 } from "@/lib/classes";
 import { currentSession } from "@/lib/sessions";
 
 const GRADES = ["Year 7", "Year 8", "Year 9", "Year 10", "Year 11", "Year 12"];
 // Mid-term joiner options. "" = present from the start (Term 1).
 const JOIN_TERMS = [{ v: "", label: "From start (Term 1)" }, { v: "Term 2", label: "Joined Term 2" }, { v: "Term 3", label: "Joined Term 3" }];
+// Group attributes for cohort analysis. "" = unspecified.
+const GENDERS = [{ v: "", label: "Gender…" }, { v: "Male", label: "Male" }, { v: "Female", label: "Female" }, { v: "Other", label: "Other" }];
+const SEN_OPTS = [{ v: "no", label: "Non-SEND" }, { v: "yes", label: "SEND" }];
+const RESIDENCY = [{ v: "", label: "Day/Boarding…" }, { v: "Day", label: "Day" }, { v: "Boarding", label: "Boarding" }];
+const ORIGIN = [{ v: "", label: "Local/Intl…" }, { v: "Local", label: "Local" }, { v: "International", label: "International" }];
+const attrSel: React.CSSProperties = { padding: "4px 7px", borderRadius: 8, border: "1px solid var(--border)", fontSize: 11, background: "var(--surface)", color: "var(--ink)", cursor: "pointer" };
 const card: React.CSSProperties = { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, padding: 18, boxShadow: "var(--card-shadow)" };
 const inp: React.CSSProperties = { padding: "9px 11px", borderRadius: 10, border: "1px solid var(--border)", fontSize: 13, boxSizing: "border-box", background: "var(--surface)", color: "var(--ink)" };
 const btn: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 999, border: "none", background: "var(--accent)", color: "var(--accent-ink)", fontWeight: 700, fontSize: 13, cursor: "pointer" };
@@ -60,6 +66,10 @@ export default function ClassesPage() {
   }
   async function setJoin(l: LearnerBasic, term: string) {
     try { await updateLearnerJoin(l.id, term ? selSession : null, term || null); setLearners(await getLearnersBasic(sel)); }
+    catch (e: any) { setMsg(e.message); }
+  }
+  async function setAttr(l: LearnerBasic, patch: Partial<{ gender: string | null; sen: boolean; residency: string | null; origin: string | null }>) {
+    try { await updateLearnerAttrs(l.id, patch); setLearners(await getLearnersBasic(sel)); }
     catch (e: any) { setMsg(e.message); }
   }
   async function removeArm(c: ClassRow) {
@@ -158,20 +168,35 @@ export default function ClassesPage() {
                 </div>
                 <div style={{ border: "1px solid var(--border)", borderRadius: 10, maxHeight: 240, overflow: "auto" }}>
                   {learners.map((l, i) => (
-                    <div key={l.id} className="row-hover" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
+                    <div key={l.id} className="row-hover" style={{ display: "grid", gap: 6, padding: "9px 12px",
                       borderBottom: i < learners.length - 1 ? "1px solid var(--border)" : "none", fontSize: 13 }}>
-                      <span style={{ fontFamily: "ui-monospace, monospace", color: "var(--ink-faint)", width: 110 }}>{l.admission_number}</span>
-                      <span style={{ fontWeight: 600, flex: 1, minWidth: 90 }}>{l.fullname}</span>
-                      <select value={l.joined_term ?? ""} onChange={(e) => setJoin(l, e.target.value)}
-                        title="When this learner joined — From start if present since Term 1"
-                        style={{ ...inp, padding: "4px 7px", fontSize: 11, width: 150, color: l.joined_term ? "var(--ink)" : "var(--ink-faint)" }}>
-                        {JOIN_TERMS.map((j) => <option key={j.v} value={j.v}>{j.label}</option>)}
-                      </select>
-                      <button onClick={() => removeLearner(l)} title="Delete learner" aria-label={`Delete ${l.fullname}`} className="icon-btn"
-                        style={{ display: "inline-flex", alignItems: "center", padding: 5, border: "none", borderRadius: 7,
-                          background: "transparent", color: "var(--ink-faint)", cursor: "pointer" }}>
-                        <Trash2 size={14} />
-                      </button>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ fontFamily: "ui-monospace, monospace", color: "var(--ink-faint)", width: 110 }}>{l.admission_number}</span>
+                        <span style={{ fontWeight: 600, flex: 1, minWidth: 90 }}>{l.fullname}</span>
+                        <button onClick={() => removeLearner(l)} title="Delete learner" aria-label={`Delete ${l.fullname}`} className="icon-btn"
+                          style={{ display: "inline-flex", alignItems: "center", padding: 5, border: "none", borderRadius: 7,
+                            background: "transparent", color: "var(--ink-faint)", cursor: "pointer" }}>
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        <select value={l.gender ?? ""} onChange={(e) => setAttr(l, { gender: e.target.value || null })} title="Gender" style={attrSel}>
+                          {GENDERS.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}
+                        </select>
+                        <select value={l.sen ? "yes" : "no"} onChange={(e) => setAttr(l, { sen: e.target.value === "yes" })} title="Special educational needs" style={attrSel}>
+                          {SEN_OPTS.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}
+                        </select>
+                        <select value={l.residency ?? ""} onChange={(e) => setAttr(l, { residency: e.target.value || null })} title="Day or boarding" style={attrSel}>
+                          {RESIDENCY.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}
+                        </select>
+                        <select value={l.origin ?? ""} onChange={(e) => setAttr(l, { origin: e.target.value || null })} title="International or local" style={attrSel}>
+                          {ORIGIN.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}
+                        </select>
+                        <select value={l.joined_term ?? ""} onChange={(e) => setJoin(l, e.target.value)} title="When this learner joined"
+                          style={{ ...attrSel, color: l.joined_term ? "var(--ink)" : "var(--ink-faint)" }}>
+                          {JOIN_TERMS.map((j) => <option key={j.v} value={j.v}>{j.label}</option>)}
+                        </select>
+                      </div>
                     </div>
                   ))}
                 </div>

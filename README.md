@@ -13,7 +13,9 @@ assignments, interventions — plus printable reports and a supervisor role.
    `migration_subjects.sql` (lets you rename/delete subjects),
    `migration_enrollment.sql` → `migration_join_term.sql` →
    `migration_join_term_analysis.sql` (mid-term joiners — see §below),
-   `migration_team_roles.sql` (in-app role management — see §Accounts).
+   `migration_team_roles.sql` (in-app role management — see §Accounts),
+   `migration_learner_groups.sql` (SEND / residency / origin attributes for the
+   dashboard's group comparison).
 3. Storage → create a **private** bucket named `evidence`, then run
    `migration_evidence_storage.sql` (own-files read/write/delete policies for
    the Weekly tracker uploads).
