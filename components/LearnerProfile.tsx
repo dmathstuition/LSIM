@@ -2,10 +2,27 @@
 
 import React, { useMemo } from "react";
 import Link from "next/link";
-import { Printer, ArrowLeft, User, CalendarCheck, FileCheck, HeartPulse } from "lucide-react";
+import {
+  ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis,
+  CartesianGrid, Tooltip, Cell, Legend,
+} from "recharts";
+import { Printer, ArrowLeft, User, CalendarCheck, FileCheck, HeartPulse, TrendingUp } from "lucide-react";
 import { C, card, Wrap, Chip, RISK, bandColor } from "@/components/ui";
+import { componentPct } from "@/lib/grading";
 import AttendanceCalendar from "@/components/AttendanceCalendar";
 import type { LearnerProfileData } from "@/lib/learner-queries";
+
+/** Short period label for chart axes: session "2025/2026" + "Term 1" → "T1 25/26". */
+function shortPeriod(session: string, term: string): string {
+  const t = (term.match(/\d+/)?.[0]) ?? term;
+  const yrs = session.split("/");
+  const yy = yrs.length === 2 ? `${yrs[0].slice(-2)}/${yrs[1].slice(-2)}` : session;
+  return `T${t} ${yy}`;
+}
+// Theme-/print-aware chart chrome (CSS vars resolve in SVG and flip to the light
+// sheet under @media print, so the charts match the rest of the report card).
+const axisTick = { fontSize: 11, fill: C.inkFaint } as const;
+const tooltipStyle = { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 12, color: C.ink } as const;
 
 const ATT_COLOR: Record<string, string> = { Present: C.good, Late: C.warn, Absent: C.bad };
 
@@ -13,6 +30,39 @@ export default function LearnerProfile({ data }: { data: LearnerProfileData }) {
   const { learner, risk, scores, attendance, submissions, interventions } = data;
   const missing = submissions.filter((s) => s.status === "Not Submitted").length;
   const attMap = useMemo(() => new Map(attendance.all.map((a) => [a.date, a.status])), [attendance.all]);
+
+  // Per-period (session+term) averages — drives the progress line and the
+  // component (CA1/CA2/Exam) term-comparison bars. Sorted chronologically.
+  const byPeriod = useMemo(() => {
+    const m = new Map<string, { key: string; label: string; total: number; ca1: number; ca2: number; exam: number; n: number }>();
+    for (const s of scores) {
+      const key = `${s.session}|${s.term}`;
+      const b = m.get(key) ?? { key, label: shortPeriod(s.session, s.term), total: 0, ca1: 0, ca2: 0, exam: 0, n: 0 };
+      b.total += s.total;
+      b.ca1 += componentPct("first_ca", s.first_ca);
+      b.ca2 += componentPct("second_ca", s.second_ca);
+      b.exam += componentPct("exam", s.exam);
+      b.n += 1;
+      m.set(key, b);
+    }
+    return [...m.values()].sort((a, b) => a.key.localeCompare(b.key)).map((b) => ({
+      period: b.label,
+      avg: Math.round(b.total / b.n),
+      CA1: Math.round(b.ca1 / b.n),
+      CA2: Math.round(b.ca2 / b.n),
+      Exam: Math.round(b.exam / b.n),
+    }));
+  }, [scores]);
+
+  // Mean total per subject across all terms — strongest → weakest.
+  const bySubject = useMemo(() => {
+    const m = new Map<string, { total: number; n: number }>();
+    for (const s of scores) {
+      const b = m.get(s.subject_name) ?? { total: 0, n: 0 };
+      b.total += s.total; b.n += 1; m.set(s.subject_name, b);
+    }
+    return [...m.entries()].map(([subject, b]) => ({ subject, avg: Math.round(b.total / b.n) })).sort((a, b) => b.avg - a.avg);
+  }, [scores]);
 
   return (
     <Wrap>
@@ -48,6 +98,67 @@ export default function LearnerProfile({ data }: { data: LearnerProfileData }) {
         <Kpi icon={FileCheck} label="Missing work" value={`${missing || risk.missing}`} color={(missing || risk.missing) > 0 ? C.bad : C.good} />
         <Kpi icon={User} label="Days logged" value={`${attendance.total}`} />
       </section>
+
+      {/* performance analysis — trends, subject strengths, term comparison */}
+      {scores.length > 0 && (
+        <>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 2px 12px" }}>
+            <TrendingUp size={16} color={C.brand} />
+            <span style={{ fontSize: 15, fontWeight: 700 }}>Performance analysis</span>
+          </div>
+          <div className="lay-even" style={{ marginBottom: 14 }}>
+            {/* progress over time */}
+            <div style={card}>
+              <Title>Progress over time</Title>
+              <Sub>Average total (%) each term the learner was assessed</Sub>
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={byPeriod} margin={{ top: 8, right: 10, left: -18, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
+                  <XAxis dataKey="period" tick={axisTick} axisLine={{ stroke: C.border }} tickLine={false} />
+                  <YAxis domain={[0, 100]} tick={axisTick} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v}%`, "Average"]} />
+                  <Line type="monotone" dataKey="avg" stroke={C.brand} strokeWidth={2.5} dot={{ r: 4, fill: C.brand }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* subject strengths */}
+            <div style={card}>
+              <Title>Subject strengths</Title>
+              <Sub>Average total (%) per subject — strongest to weakest</Sub>
+              <ResponsiveContainer width="100%" height={Math.max(220, bySubject.length * 34)}>
+                <BarChart data={bySubject} layout="vertical" margin={{ top: 4, right: 16, left: 6, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={C.border} horizontal={false} />
+                  <XAxis type="number" domain={[0, 100]} tick={axisTick} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="subject" width={90} tick={axisTick} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v}%`, "Average"]} cursor={{ fill: C.brandSoft }} />
+                  <Bar dataKey="avg" radius={[0, 5, 5, 0]}>
+                    {bySubject.map((s, i) => <Cell key={i} fill={bandColor(s.avg)} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* term comparison — assessment components */}
+          <div style={{ ...card, marginBottom: 14 }}>
+            <Title>Term comparison — assessment components</Title>
+            <Sub>How each term was built: CA1, CA2 and Exam averaged as % of their max</Sub>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={byPeriod} margin={{ top: 8, right: 10, left: -18, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
+                <XAxis dataKey="period" tick={axisTick} axisLine={{ stroke: C.border }} tickLine={false} />
+                <YAxis domain={[0, 100]} tick={axisTick} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => `${v}%`} cursor={{ fill: C.brandSoft }} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Bar dataKey="CA1" fill="#5E8DF0" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="CA2" fill="#C9A227" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Exam" fill="#1FA97A" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </>
+      )}
 
       <div className="lay-2">
         {/* scores */}
@@ -148,4 +259,5 @@ function Kpi({ icon: Icon, label, value, suffix, color }: any) {
   );
 }
 function Title({ children }: { children: React.ReactNode }) { return <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>{children}</div>; }
+function Sub({ children }: { children: React.ReactNode }) { return <div style={{ fontSize: 12, color: C.inkFaint, margin: "-8px 0 12px" }}>{children}</div>; }
 function Muted({ children }: { children: React.ReactNode }) { return <div style={{ fontSize: 13, color: C.inkFaint }}>{children}</div>; }
