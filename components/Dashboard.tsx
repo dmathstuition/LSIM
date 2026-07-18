@@ -60,6 +60,7 @@ export default function Dashboard({
   const { theme, setTheme } = useTheme();
   const [perfMode, setPerfMode] = useState<"top" | "bottom">("top");
   const [metric, setMetric] = useState<ScoreComponent>("total");
+  const [groupBy, setGroupBy] = useState<"gender" | "sen" | "residency" | "origin">("gender");
   const t = THEMES[theme];
 
   const subjectLabel = selectedSubject === "all" ? "All subjects" : (subjects.find((s) => s.id === selectedSubject)?.label ?? "All subjects");
@@ -101,22 +102,43 @@ export default function Dashboard({
   const perfList = perfMode === "top" ? ranked.slice(0, 8) : ranked.slice(-8).reverse();
   const atRiskList = [...learners].filter((l) => l.level !== "Low").sort((a, b) => (b.level === "Critical" ? 1 : 0) - (a.level === "Critical" ? 1 : 0) || a.avg - b.avg);
 
-  // Score comparison by gender (only groups that are actually present).
-  const byGender = useMemo(() => {
-    const order = ["Female", "Male", "Other"];
-    const groups = order.map((g) => {
-      const rows = scored.filter((l) => (l.gender ?? "Unspecified") === g);
+  // Cohort comparison dimensions — each maps a learner to a group label.
+  const GROUP_COLORS = ["#C0504D", t.brand, "#C9A227", "#1FA97A", "#8B5CF6"];
+  const DIMS = {
+    gender:    { label: "Gender",    order: ["Female", "Male", "Other"] as string[],      of: (l: LearnerRow) => l.gender ?? null },
+    sen:       { label: "SEND",      order: ["SEND", "Non-SEND"] as string[],              of: (l: LearnerRow) => (l.sen ? "SEND" : "Non-SEND") },
+    residency: { label: "Boarding",  order: ["Boarding", "Day"] as string[],               of: (l: LearnerRow) => l.residency ?? null },
+    origin:    { label: "Origin",    order: ["International", "Local"] as string[],         of: (l: LearnerRow) => l.origin ?? null },
+  } as const;
+  const GROUP_TABS: { id: keyof typeof DIMS; label: string }[] = [
+    { id: "gender", label: "Male / Female" }, { id: "sen", label: "SEND" },
+    { id: "origin", label: "Intl / Local" }, { id: "residency", label: "Day / Boarding" },
+  ];
+
+  // Selected-dimension groups actually present in scope, with avg + pass rate.
+  const byGroup = useMemo(() => {
+    const dim = DIMS[groupBy];
+    const groups = dim.order.map((name, i) => {
+      const rows = scored.filter((l) => dim.of(l) === name);
       const n = rows.length;
       return {
-        name: g, n,
+        name, n, color: GROUP_COLORS[i % GROUP_COLORS.length],
         avg: n ? Math.round(rows.reduce((s, l) => s + val(l), 0) / n) : 0,
         pass: n ? Math.round((rows.filter((l) => l.avg >= 50).length / n) * 100) : 0,
       };
     }).filter((g) => g.n > 0);
-    const unspecified = scored.filter((l) => !l.gender || !order.includes(l.gender)).length;
+    const unspecified = scored.filter((l) => !dim.order.includes(dim.of(l) as string)).length;
     return { groups, unspecified };
+  }, [scored, metric, groupBy]);
+
+  // Gender split kept for the auto-insight below (independent of the picker).
+  const byGender = useMemo(() => {
+    const groups = ["Female", "Male"].map((g) => {
+      const rows = scored.filter((l) => l.gender === g);
+      return { name: g, avg: rows.length ? Math.round(rows.reduce((s, l) => s + val(l), 0) / rows.length) : 0, n: rows.length };
+    }).filter((g) => g.n > 0);
+    return { groups };
   }, [scored, metric]);
-  const genderColor: Record<string, string> = { Female: "#C0504D", Male: t.brand, Other: "#C9A227" };
 
   // Auto-derived one-line inferences from the data in scope.
   const insights = useMemo(() => {
@@ -389,30 +411,39 @@ export default function Dashboard({
             </section>
 
             <section className="lay-side" style={{ marginBottom: 14 }}>
-              <Panel title="Gender comparison" sub={`${METRIC_TITLE[metric]} average & pass rate by gender`}>
-                {byGender.groups.length === 0 ? <NoData msg="Add gender on the Classes page to compare." /> : (
+              <Panel title="Group comparison" sub={`${METRIC_TITLE[metric]} average & pass rate by group`}
+                right={
+                  <div style={{ display: "flex", gap: 4, background: t.surface2, padding: 3, borderRadius: 10, flexWrap: "wrap" }}>
+                    {GROUP_TABS.map((g) => (
+                      <button key={g.id} onClick={() => setGroupBy(g.id)} style={{ fontSize: 11, fontWeight: 600, padding: "5px 9px", borderRadius: 8, cursor: "pointer", border: "none", background: groupBy === g.id ? t.surface : "transparent", color: groupBy === g.id ? t.brand : t.inkFaint }}>
+                        {g.label}
+                      </button>
+                    ))}
+                  </div>
+                }>
+                {byGroup.groups.length === 0 ? <NoData msg={`Set ${DIMS[groupBy].label.toLowerCase()} on the Classes page to compare.`} /> : (
                   <>
                     <ResponsiveContainer width="100%" height={180}>
-                      <BarChart data={byGender.groups} margin={{ top: 6, right: 10, left: -18, bottom: 0 }}>
+                      <BarChart data={byGroup.groups} margin={{ top: 6, right: 10, left: -18, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke={t.border} vertical={false} />
                         <XAxis dataKey="name" tick={{ fontSize: 12, fill: t.inkSoft }} tickLine={false} axisLine={{ stroke: t.border }} />
                         <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: t.inkFaint }} tickLine={false} axisLine={false} />
                         <Tooltip content={<Tip />} cursor={{ fill: t.grid }} />
                         <Bar dataKey="avg" name={METRIC_TITLE[metric]} radius={[5, 5, 0, 0]}>
-                          {byGender.groups.map((g, i) => <Cell key={i} fill={genderColor[g.name] ?? t.brand} />)}
+                          {byGroup.groups.map((g, i) => <Cell key={i} fill={g.color} />)}
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-                      {byGender.groups.map((g) => (
+                      {byGroup.groups.map((g) => (
                         <div key={g.name} style={{ flex: "1 1 120px", border: `1px solid ${t.border}`, borderRadius: 10, padding: "8px 11px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 600 }}>
-                            <span style={{ width: 9, height: 9, borderRadius: 3, background: genderColor[g.name] ?? t.brand }} />{g.name} · {g.n}
+                            <span style={{ width: 9, height: 9, borderRadius: 3, background: g.color }} />{g.name} · {g.n}
                           </div>
                           <div className="dm-num" style={{ marginTop: 4, fontSize: 13 }}>Avg <b style={{ color: bandOf(g.avg).color }}>{g.avg}%</b> · Pass <b>{g.pass}%</b></div>
                         </div>
                       ))}
-                      {byGender.unspecified > 0 && <div style={{ alignSelf: "center", fontSize: 11, color: t.inkFaint }}>{byGender.unspecified} without gender set</div>}
+                      {byGroup.unspecified > 0 && <div style={{ alignSelf: "center", fontSize: 11, color: t.inkFaint }}>{byGroup.unspecified} unspecified</div>}
                     </div>
                   </>
                 )}

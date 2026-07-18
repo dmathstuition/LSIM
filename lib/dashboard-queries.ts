@@ -6,7 +6,8 @@ export type { RiskLevel };
 /** Per-learner average for each assessment component, as a % of its max. */
 export type ComponentPct = Record<ScoreComponent, number>;
 export interface LearnerRow {
-  id: string; adm: string; name: string; gender: string | null;
+  id: string; adm: string; name: string;
+  gender: string | null; sen: boolean; residency: string | null; origin: string | null;
   avg: number; attendance: number; missing: number; level: RiskLevel; declining: boolean;
   comp: ComponentPct;
   /** True if the learner has ≥1 score row in the current scope (the selected
@@ -48,7 +49,8 @@ export async function getScorePeriods(): Promise<{ sessions: string[]; terms: st
 // in computeLearners, so a mid-term joiner's earlier terms never count even if the
 // database exemption migration hasn't been applied.
 export interface RawLearner {
-  id: string; name: string; adm: string; gender: string | null;
+  id: string; name: string; adm: string;
+  gender: string | null; sen: boolean; residency: string | null; origin: string | null;
   attendance_pct: number | null; missing: number;
   joined_session: string | null; joined_term: string | null;
 }
@@ -81,7 +83,7 @@ export async function getDashboardRaw(classId?: string): Promise<DashboardRaw> {
   // average/risk excluding pre-join terms in the app.
   let riskQ = supabase.from("learner_risk_level")
     .select("learner_id, fullname, attendance_pct, missing_assignments");
-  let learnersQ = supabase.from("learners").select("id, admission_number, gender, joined_session, joined_term");
+  let learnersQ = supabase.from("learners").select("id, admission_number, gender, joined_session, joined_term, sen, residency, origin");
   let scoresQ = supabase.from("score_report").select("learner_id, subject_id, term, session, first_ca, second_ca, exam, total");
   if (classId) { riskQ = riskQ.eq("class_id", classId); learnersQ = learnersQ.eq("class_id", classId); scoresQ = scoresQ.eq("class_id", classId); }
 
@@ -90,19 +92,18 @@ export async function getDashboardRaw(classId?: string): Promise<DashboardRaw> {
   if (lRes.error) throw lRes.error;
   if (sRes.error) throw sRes.error;
 
-  const admMap = new Map<string, string>();
-  const genderMap = new Map<string, string | null>();
-  const joinMap = new Map<string, { s: string | null; t: string | null }>();
-  (lRes.data ?? []).forEach((l: any) => {
-    admMap.set(l.id, l.admission_number); genderMap.set(l.id, l.gender ?? null);
-    joinMap.set(l.id, { s: l.joined_session ?? null, t: l.joined_term ?? null });
-  });
+  const attrMap = new Map<string, any>();
+  (lRes.data ?? []).forEach((l: any) => attrMap.set(l.id, l));
 
-  const learners: RawLearner[] = (riskRes.data ?? []).map((r: any) => ({
-    id: r.learner_id, name: r.fullname, adm: admMap.get(r.learner_id) ?? "", gender: genderMap.get(r.learner_id) ?? null,
-    attendance_pct: r.attendance_pct ?? null, missing: r.missing_assignments ?? 0,
-    joined_session: joinMap.get(r.learner_id)?.s ?? null, joined_term: joinMap.get(r.learner_id)?.t ?? null,
-  }));
+  const learners: RawLearner[] = (riskRes.data ?? []).map((r: any) => {
+    const a = attrMap.get(r.learner_id) ?? {};
+    return {
+      id: r.learner_id, name: r.fullname, adm: a.admission_number ?? "",
+      gender: a.gender ?? null, sen: a.sen ?? false, residency: a.residency ?? null, origin: a.origin ?? null,
+      attendance_pct: r.attendance_pct ?? null, missing: r.missing_assignments ?? 0,
+      joined_session: a.joined_session ?? null, joined_term: a.joined_term ?? null,
+    };
+  });
   const scores: RawScore[] = (sRes.data ?? []).map((s: any) => ({
     learner_id: s.learner_id, subject_id: s.subject_id, term: s.term, session: s.session,
     first_ca: s.first_ca, second_ca: s.second_ca, exam: s.exam, total: s.total,
@@ -154,7 +155,8 @@ export function computeLearners(raw: DashboardRaw, scope: ScoreScope = {}): Lear
         ? (rows.length ? Math.round(rows.reduce((a, r) => a + r.total, 0) / rows.length) : 0)
         : risk.avg;
       return {
-        id: l.id, adm: l.adm, name: l.name, gender: l.gender,
+        id: l.id, adm: l.adm, name: l.name,
+        gender: l.gender, sen: l.sen, residency: l.residency, origin: l.origin,
         avg, attendance: Math.round(l.attendance_pct ?? 0), missing: l.missing,
         level: risk.level, declining: risk.declining,
         comp: rows.length ? componentAverages(rows) : emptyComp,
