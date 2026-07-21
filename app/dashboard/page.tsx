@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Dashboard from "@/components/Dashboard";
-import { getDashboardRaw, computeLearners, computeScoreTrend, getAttendanceTrend, getScorePeriods, type DashboardRaw } from "@/lib/dashboard-queries";
+import { getDashboardRaw, computeLearners, computeScoreTrend, computeDeterminedTrend, getAttendanceTrend, getScorePeriods, type DashboardRaw } from "@/lib/dashboard-queries";
 import { getOverdueFollowups, type OverdueFollowup } from "@/lib/intervention-queries";
 import { getClasses, getSubjects } from "@/lib/classes";
 import { createClient } from "@/lib/supabase/client";
@@ -52,6 +52,7 @@ export default function DashboardPage() {
 
   const learners = useMemo(() => (raw ? computeLearners(raw, scope) : []), [raw, scope]);
   const trend = useMemo(() => (raw ? computeScoreTrend(raw, scope) : []), [raw, scope]);
+  const determinedTrend = useMemo(() => (raw ? computeDeterminedTrend(raw, scope) : []), [raw, scope]);
 
   if (loading) return <div style={{ padding: 40, textAlign: "center", color: "var(--ink-faint)" }}>Loading…</div>;
 
@@ -60,6 +61,6 @@ export default function DashboardPage() {
       subjects={subjects} selectedSubject={subject} onSelectSubject={setSubject}
       terms={terms} selectedTerm={term} onSelectTerm={setTerm}
       sessions={sessions} selectedSession={session} onSelectSession={setSession}
-      scoreTrend={trend} attTrend={att} overdue={overdue} teacherEmail={email} />
+      scoreTrend={trend} determinedTrend={determinedTrend} attTrend={att} overdue={overdue} teacherEmail={email} />
   );
 }

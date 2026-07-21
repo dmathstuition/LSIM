@@ -8,6 +8,8 @@ export type ComponentPct = Record<ScoreComponent, number>;
 export interface LearnerRow {
   id: string; adm: string; name: string;
   gender: string | null; sen: boolean; residency: string | null; origin: string | null;
+  /** The school's manually-assigned achiever band: "HPA" | "LPA" | null (not determined). */
+  school_band: string | null;
   avg: number; attendance: number; missing: number; level: RiskLevel; declining: boolean;
   comp: ComponentPct;
   /** True if the learner has ≥1 score row in the current scope (the selected
@@ -51,6 +53,7 @@ export async function getScorePeriods(): Promise<{ sessions: string[]; terms: st
 export interface RawLearner {
   id: string; name: string; adm: string;
   gender: string | null; sen: boolean; residency: string | null; origin: string | null;
+  school_band: string | null;
   attendance_pct: number | null; missing: number;
   joined_session: string | null; joined_term: string | null;
 }
@@ -83,7 +86,7 @@ export async function getDashboardRaw(classId?: string): Promise<DashboardRaw> {
   // average/risk excluding pre-join terms in the app.
   let riskQ = supabase.from("learner_risk_level")
     .select("learner_id, fullname, attendance_pct, missing_assignments");
-  let learnersQ = supabase.from("learners").select("id, admission_number, gender, joined_session, joined_term, sen, residency, origin");
+  let learnersQ = supabase.from("learners").select("id, admission_number, gender, joined_session, joined_term, sen, residency, origin, school_band");
   let scoresQ = supabase.from("score_report").select("learner_id, subject_id, term, session, first_ca, second_ca, exam, total");
   if (classId) { riskQ = riskQ.eq("class_id", classId); learnersQ = learnersQ.eq("class_id", classId); scoresQ = scoresQ.eq("class_id", classId); }
 
@@ -100,6 +103,7 @@ export async function getDashboardRaw(classId?: string): Promise<DashboardRaw> {
     return {
       id: r.learner_id, name: r.fullname, adm: a.admission_number ?? "",
       gender: a.gender ?? null, sen: a.sen ?? false, residency: a.residency ?? null, origin: a.origin ?? null,
+      school_band: a.school_band ?? null,
       attendance_pct: r.attendance_pct ?? null, missing: r.missing_assignments ?? 0,
       joined_session: a.joined_session ?? null, joined_term: a.joined_term ?? null,
     };
@@ -156,7 +160,7 @@ export function computeLearners(raw: DashboardRaw, scope: ScoreScope = {}): Lear
         : risk.avg;
       return {
         id: l.id, adm: l.adm, name: l.name,
-        gender: l.gender, sen: l.sen, residency: l.residency, origin: l.origin,
+        gender: l.gender, sen: l.sen, residency: l.residency, origin: l.origin, school_band: l.school_band,
         avg, attendance: Math.round(l.attendance_pct ?? 0), missing: l.missing,
         level: risk.level, declining: risk.declining,
         comp: rows.length ? componentAverages(rows) : emptyComp,
@@ -190,6 +194,30 @@ export function computeScoreTrend(raw: DashboardRaw, scope: ScoreScope = {}): Tr
     first_ca: +componentPct("first_ca", b.first_ca / b.n).toFixed(1),
     second_ca: +componentPct("second_ca", b.second_ca / b.n).toFixed(1),
     exam: +componentPct("exam", b.exam / b.n).toFixed(1),
+  })).sort((a, b) => a.term.localeCompare(b.term));
+}
+
+/** Per-term average total for the two school-judgement cohorts: learners the
+ *  school HAS categorised (school_band set to HPA/LPA) vs those it has NOT.
+ *  Drives the "determined vs not-determined progress" comparison. Pure, derived
+ *  from the already-fetched raw scores (pre-join terms excluded). Each cohort's
+ *  point is null in a term where that cohort has no marks. */
+export interface CohortTrendPoint { term: string; determined: number | null; notDetermined: number | null; }
+export function computeDeterminedTrend(raw: DashboardRaw, scope: ScoreScope = {}): CohortTrendPoint[] {
+  const { subjectId, session } = scope;
+  const isDetermined = new Map<string, boolean>(raw.learners.map((l) => [l.id, Boolean(l.school_band)]));
+  const byTerm: Record<string, { dSum: number; dN: number; nSum: number; nN: number }> = {};
+  for (const r of eligibleScores(raw)) {
+    if (subjectId && r.subject_id !== subjectId) continue;
+    if (session && r.session !== session) continue;
+    const b = (byTerm[r.term] ??= { dSum: 0, dN: 0, nSum: 0, nN: 0 });
+    if (isDetermined.get(r.learner_id)) { b.dSum += r.total; b.dN += 1; }
+    else { b.nSum += r.total; b.nN += 1; }
+  }
+  return Object.entries(byTerm).map(([term, b]) => ({
+    term,
+    determined: b.dN ? Math.round(b.dSum / b.dN) : null,
+    notDetermined: b.nN ? Math.round(b.nSum / b.nN) : null,
   })).sort((a, b) => a.term.localeCompare(b.term));
 }
 

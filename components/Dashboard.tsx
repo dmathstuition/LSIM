@@ -4,10 +4,10 @@ import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
+  LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { Users, TrendingUp, Percent, CalendarCheck, FileCheck, AlertTriangle, Download, Clock, TrendingDown, FileText, Lightbulb } from "lucide-react";
-import type { LearnerRow, TrendPoint } from "@/lib/dashboard-queries";
+import { Users, TrendingUp, Percent, CalendarCheck, FileCheck, AlertTriangle, Download, Clock, TrendingDown, FileText, Lightbulb, ScanSearch } from "lucide-react";
+import type { LearnerRow, TrendPoint, CohortTrendPoint } from "@/lib/dashboard-queries";
 import type { OverdueFollowup } from "@/lib/intervention-queries";
 import { toCsv, downloadCsv } from "@/lib/csv";
 import { COMPONENT_LABELS, COMPONENT_ORDER, type ScoreComponent } from "@/lib/grading";
@@ -37,7 +37,7 @@ export default function Dashboard({
   subjects = [], selectedSubject = "all", onSelectSubject,
   terms = [], selectedTerm = "all", onSelectTerm,
   sessions = [], selectedSession = "all", onSelectSession,
-  scoreTrend, attTrend, overdue = [], teacherEmail,
+  scoreTrend, determinedTrend = [], attTrend, overdue = [], teacherEmail,
 }: {
   learners: LearnerRow[];
   classes: Opt[];
@@ -53,6 +53,7 @@ export default function Dashboard({
   selectedSession?: string;
   onSelectSession?: (v: string) => void;
   scoreTrend: TrendPoint[];
+  determinedTrend?: CohortTrendPoint[];
   attTrend: { w: string; v: number }[];
   overdue?: OverdueFollowup[];
   teacherEmail?: string;
@@ -60,7 +61,7 @@ export default function Dashboard({
   const { theme, setTheme } = useTheme();
   const [perfMode, setPerfMode] = useState<"top" | "bottom">("top");
   const [metric, setMetric] = useState<ScoreComponent>("total");
-  const [groupBy, setGroupBy] = useState<"gender" | "sen" | "residency" | "origin" | "achievement">("gender");
+  const [groupBy, setGroupBy] = useState<"gender" | "sen" | "residency" | "origin" | "achievement" | "school">("gender");
   const [schoolName, setSchoolName] = useState("");
   const t = THEMES[theme];
 
@@ -115,11 +116,12 @@ export default function Dashboard({
     residency:   { label: "Boarding",    order: ["Boarding", "Day"] as string[],               of: (l: LearnerRow) => l.residency ?? null },
     origin:      { label: "Origin",      order: ["International", "Local"] as string[],         of: (l: LearnerRow) => l.origin ?? null },
     achievement: { label: "Achievement", order: ["HPA", "Average", "LPA"] as string[],          of: achieveOf },
+    school:      { label: "HPA/LPA (school)", order: ["HPA", "LPA"] as string[],                 of: (l: LearnerRow) => l.school_band ?? null },
   } as const;
   const GROUP_TABS: { id: keyof typeof DIMS; label: string }[] = [
     { id: "gender", label: "Male / Female" }, { id: "sen", label: "SEND" },
     { id: "origin", label: "Intl / Local" }, { id: "residency", label: "Day / Boarding" },
-    { id: "achievement", label: "LPA / HPA" },
+    { id: "achievement", label: "LPA / HPA (data)" }, { id: "school", label: "HPA / LPA (school)" },
   ];
 
   // Selected-dimension groups actually present in scope, with avg + pass rate.
@@ -129,7 +131,7 @@ export default function Dashboard({
       const rows = scored.filter((l) => dim.of(l) === name);
       const n = rows.length;
       return {
-        name, n, color: groupBy === "achievement" ? ACH_COLORS[name] : GROUP_COLORS[i % GROUP_COLORS.length],
+        name, n, color: (groupBy === "achievement" || groupBy === "school") ? ACH_COLORS[name] : GROUP_COLORS[i % GROUP_COLORS.length],
         avg: n ? Math.round(rows.reduce((s, l) => s + val(l), 0) / n) : 0,
         pass: n ? Math.round((rows.filter((l) => l.avg >= 50).length / n) * 100) : 0,
       };
@@ -137,6 +139,30 @@ export default function Dashboard({
     const unspecified = scored.filter((l) => !dim.order.includes(dim.of(l) as string)).length;
     return { groups, unspecified };
   }, [scored, metric, groupBy]);
+
+  // School HPA/LPA review: the cohort the school HAS categorised (school_band
+  // set) vs those it has NOT — average, pass rate (the term-by-term progress is
+  // the determinedTrend prop). Based on the overall average `l.avg`, so it is
+  // independent of the component-metric toggle.
+  const cohortStats = useMemo(() => {
+    const of = (rows: LearnerRow[]) => ({
+      n: rows.length,
+      avg: rows.length ? Math.round(rows.reduce((s, l) => s + l.avg, 0) / rows.length) : 0,
+      pass: rows.length ? Math.round((rows.filter((l) => l.avg >= 50).length / rows.length) * 100) : 0,
+    });
+    const det = scored.filter((l) => l.school_band === "HPA" || l.school_band === "LPA");
+    const notDet = scored.filter((l) => !l.school_band);
+    return { det: of(det), notDet: of(notDet), hasDetermined: det.length > 0 };
+  }, [scored]);
+
+  // Learners whose school HPA/LPA label disagrees with their data-derived tier
+  // (school-HPA performing below HPA level, or school-LPA performing above LPA).
+  const mismatches = useMemo(() =>
+    scored
+      .filter((l) => (l.school_band === "HPA" || l.school_band === "LPA") && achieveOf(l) !== l.school_band)
+      .map((l) => ({ id: l.id, name: l.name, school: l.school_band as string, avg: l.avg, data: achieveOf(l) }))
+      .sort((a, b) => (a.school === "HPA" ? a.avg - b.avg : b.avg - a.avg)),
+    [scored]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Gender split kept for the auto-insight below (independent of the picker).
   const byGender = useMemo(() => {
@@ -441,7 +467,7 @@ export default function Dashboard({
                     ))}
                   </div>
                 }>
-                {byGroup.groups.length === 0 ? <NoData msg={groupBy === "achievement" ? "No marks in scope to group by achievement." : `Set ${DIMS[groupBy].label.toLowerCase()} on the Classes page to compare.`} /> : (
+                {byGroup.groups.length === 0 ? <NoData msg={groupBy === "achievement" ? "No marks in scope to group by achievement." : groupBy === "school" ? "Set each learner's HPA/LPA on the Classes page to compare." : `Set ${DIMS[groupBy].label.toLowerCase()} on the Classes page to compare.`} /> : (
                   <>
                     <ResponsiveContainer width="100%" height={180}>
                       <BarChart data={byGroup.groups} margin={{ top: 6, right: 10, left: -18, bottom: 0 }}>
@@ -478,6 +504,56 @@ export default function Dashboard({
                 )}
               </Panel>
             </section>
+
+            {cohortStats.hasDetermined && (
+              <section className="lay-side" style={{ marginBottom: 14 }}>
+                <Panel title="School HPA/LPA — determined vs not-determined"
+                  sub="Average, pass rate & term-by-term progress"
+                  right={<ScanSearch size={16} color={t.brand} />}>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                    {[{ k: "Determined", s: cohortStats.det, c: t.brand }, { k: "Not determined", s: cohortStats.notDet, c: t.inkFaint }].map((x) => (
+                      <div key={x.k} style={{ flex: "1 1 140px", border: `1px solid ${t.border}`, borderRadius: 10, padding: "8px 11px" }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 7 }}>
+                          <span style={{ width: 9, height: 9, borderRadius: 3, background: x.c }} />{x.k} · {x.s.n}
+                        </div>
+                        <div className="dm-num" style={{ marginTop: 4, fontSize: 13 }}>Avg <b style={{ color: bandOf(x.s.avg).color }}>{x.s.avg}%</b> · Pass <b>{x.s.pass}%</b></div>
+                      </div>
+                    ))}
+                  </div>
+                  {determinedTrend.length === 0 ? <NoData msg="No term data to chart progress yet." /> : (
+                    <ResponsiveContainer width="100%" height={180}>
+                      <LineChart data={determinedTrend} margin={{ top: 6, right: 10, left: -18, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={t.border} vertical={false} />
+                        <XAxis dataKey="term" tick={{ fontSize: 12, fill: t.inkSoft }} tickLine={false} axisLine={{ stroke: t.border }} />
+                        <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: t.inkFaint }} tickLine={false} axisLine={false} />
+                        <Tooltip content={<Tip />} />
+                        <Legend wrapperStyle={{ fontSize: 11 }} />
+                        <Line type="monotone" dataKey="determined" name="Determined" stroke={t.brand} strokeWidth={2.5} dot={{ r: 3, fill: t.brand }} connectNulls />
+                        <Line type="monotone" dataKey="notDetermined" name="Not determined" stroke={t.inkFaint} strokeWidth={2} strokeDasharray="4 3" dot={{ r: 3, fill: t.inkFaint }} connectNulls />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
+                </Panel>
+                <Panel title="Label vs performance"
+                  sub="School HPA/LPA that disagrees with the data-derived tier"
+                  right={<AlertTriangle size={16} color="#E0701E" />}>
+                  {mismatches.length === 0 ? <NoData msg="Every school label matches the data. ✓" /> : (
+                    <div style={{ display: "grid", gap: 8 }}>
+                      {mismatches.map((m) => (
+                        <Link key={m.id} href={`/learners/${m.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, border: `1px solid ${t.border}`, borderRadius: 10, padding: "8px 11px" }}>
+                            <span style={{ fontSize: 13, fontWeight: 600 }}>{m.name}</span>
+                            <span style={{ fontSize: 12, color: t.inkSoft, textAlign: "right" }}>
+                              School <b style={{ color: ACH_COLORS[m.school] }}>{m.school}</b> · avg <b style={{ color: bandOf(m.avg).color }}>{m.avg}%</b> <span style={{ color: t.inkFaint }}>({m.data})</span>
+                            </span>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </Panel>
+              </section>
+            )}
 
             <section className="lay-even" style={{ marginBottom: 14 }}>
               <Panel title="Score trend" sub={`${METRIC_TITLE[metric]} average across terms`}>

@@ -16,6 +16,7 @@ const GENDERS = [{ v: "", label: "Gender…" }, { v: "Male", label: "Male" }, { 
 const SEN_OPTS = [{ v: "no", label: "Non-SEND" }, { v: "yes", label: "SEND" }];
 const RESIDENCY = [{ v: "", label: "Day/Boarding…" }, { v: "Day", label: "Day" }, { v: "Boarding", label: "Boarding" }];
 const ORIGIN = [{ v: "", label: "Local/Intl…" }, { v: "Local", label: "Local" }, { v: "International", label: "International" }];
+const SCHOOL_BAND = [{ v: "", label: "HPA/LPA…" }, { v: "HPA", label: "HPA" }, { v: "LPA", label: "LPA" }];
 const attrSel: React.CSSProperties = { padding: "4px 7px", borderRadius: 8, border: "1px solid var(--border)", fontSize: 11, background: "var(--surface)", color: "var(--ink)", cursor: "pointer" };
 const card: React.CSSProperties = { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, padding: 18, boxShadow: "var(--card-shadow)" };
 const inp: React.CSSProperties = { padding: "9px 11px", borderRadius: 10, border: "1px solid var(--border)", fontSize: 13, boxSizing: "border-box", background: "var(--surface)", color: "var(--ink)" };
@@ -68,7 +69,7 @@ export default function ClassesPage() {
     try { await updateLearnerJoin(l.id, term ? selSession : null, term || null); setLearners(await getLearnersBasic(sel)); }
     catch (e: any) { setMsg(e.message); }
   }
-  async function setAttr(l: LearnerBasic, patch: Partial<{ gender: string | null; sen: boolean; residency: string | null; origin: string | null }>) {
+  async function setAttr(l: LearnerBasic, patch: Partial<{ gender: string | null; sen: boolean; residency: string | null; origin: string | null; school_band: string | null }>) {
     try { await updateLearnerAttrs(l.id, patch); setLearners(await getLearnersBasic(sel)); }
     catch (e: any) { setMsg(e.message); }
   }
@@ -191,6 +192,10 @@ export default function ClassesPage() {
                         </select>
                         <select value={l.origin ?? ""} onChange={(e) => setAttr(l, { origin: e.target.value || null })} title="International or local" style={attrSel}>
                           {ORIGIN.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}
+                        </select>
+                        <select value={l.school_band ?? ""} onChange={(e) => setAttr(l, { school_band: e.target.value || null })} title="School-assigned HPA/LPA band"
+                          style={{ ...attrSel, color: l.school_band ? "var(--ink)" : "var(--ink-faint)" }}>
+                          {SCHOOL_BAND.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}
                         </select>
                         <select value={l.joined_term ?? ""} onChange={(e) => setJoin(l, e.target.value)} title="When this learner joined"
                           style={{ ...attrSel, color: l.joined_term ? "var(--ink)" : "var(--ink-faint)" }}>

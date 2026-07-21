@@ -7,6 +7,7 @@ export interface LearnerBasic {
   id: string; admission_number: string; fullname: string; gender: string | null;
   joined_session: string | null; joined_term: string | null;
   sen: boolean; residency: string | null; origin: string | null;
+  school_band: string | null;
 }
 
 /** Safety net in case the SQL backfill wasn't run: make the profile row. */
@@ -73,7 +74,7 @@ export async function deleteSubject(id: string) {
 
 export async function getLearnersBasic(classId: string): Promise<LearnerBasic[]> {
   const { data, error } = await supabase.from("learners")
-    .select("id, admission_number, fullname, gender, joined_session, joined_term, sen, residency, origin")
+    .select("id, admission_number, fullname, gender, joined_session, joined_term, sen, residency, origin, school_band")
     .eq("class_id", classId).order("fullname");
   if (error) throw error;
   return (data ?? []).map((l: any) => ({ ...l, sen: l.sen ?? false }));
@@ -83,6 +84,7 @@ export interface NewLearner {
   admission_number: string; fullname: string; gender?: string | null;
   joined_session?: string | null; joined_term?: string | null;
   sen?: boolean; residency?: string | null; origin?: string | null;
+  school_band?: string | null;
 }
 
 export async function bulkAddLearners(classId: string, rows: NewLearner[]) {
@@ -91,6 +93,7 @@ export async function bulkAddLearners(classId: string, rows: NewLearner[]) {
     fullname: r.fullname, gender: r.gender ?? null,
     joined_session: r.joined_session || null, joined_term: r.joined_term || null,
     sen: r.sen ?? false, residency: r.residency || null, origin: r.origin || null,
+    school_band: r.school_band || null,
   }));
   const { error } = await supabase.from("learners")
     .upsert(payload, { onConflict: "class_id,admission_number" });
@@ -105,9 +108,10 @@ export async function updateLearnerJoin(id: string, joined_session: string | nul
   if (error) throw error;
 }
 
-/** Update a learner's group attributes (gender / SEND / residency / origin). */
+/** Update a learner's group attributes (gender / SEND / residency / origin /
+ *  the school's HPA/LPA band). */
 export async function updateLearnerAttrs(
-  id: string, patch: Partial<{ gender: string | null; sen: boolean; residency: string | null; origin: string | null }>
+  id: string, patch: Partial<{ gender: string | null; sen: boolean; residency: string | null; origin: string | null; school_band: string | null }>
 ) {
   const { error } = await supabase.from("learners").update(patch).eq("id", id);
   if (error) throw error;
