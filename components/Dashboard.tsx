@@ -60,7 +60,7 @@ export default function Dashboard({
   const { theme, setTheme } = useTheme();
   const [perfMode, setPerfMode] = useState<"top" | "bottom">("top");
   const [metric, setMetric] = useState<ScoreComponent>("total");
-  const [groupBy, setGroupBy] = useState<"gender" | "sen" | "residency" | "origin">("gender");
+  const [groupBy, setGroupBy] = useState<"gender" | "sen" | "residency" | "origin" | "achievement">("gender");
   const [schoolName, setSchoolName] = useState("");
   const t = THEMES[theme];
 
@@ -105,15 +105,21 @@ export default function Dashboard({
 
   // Cohort comparison dimensions — each maps a learner to a group label.
   const GROUP_COLORS = ["#C0504D", t.brand, "#C9A227", "#1FA97A", "#8B5CF6"];
+  // Achievement tiers are derived from the learner's average (not a stored attr):
+  // HPA ≥ 70 (the "Very Good" band), LPA < 50 (below the pass mark), Average between.
+  const achieveOf = (l: LearnerRow) => (l.avg >= 70 ? "HPA" : l.avg < 50 ? "LPA" : "Average");
+  const ACH_COLORS: Record<string, string> = { HPA: "#1FA97A", Average: "#C9A227", LPA: "#C0504D" };
   const DIMS = {
-    gender:    { label: "Gender",    order: ["Female", "Male", "Other"] as string[],      of: (l: LearnerRow) => l.gender ?? null },
-    sen:       { label: "SEND",      order: ["SEND", "Non-SEND"] as string[],              of: (l: LearnerRow) => (l.sen ? "SEND" : "Non-SEND") },
-    residency: { label: "Boarding",  order: ["Boarding", "Day"] as string[],               of: (l: LearnerRow) => l.residency ?? null },
-    origin:    { label: "Origin",    order: ["International", "Local"] as string[],         of: (l: LearnerRow) => l.origin ?? null },
+    gender:      { label: "Gender",      order: ["Female", "Male", "Other"] as string[],      of: (l: LearnerRow) => l.gender ?? null },
+    sen:         { label: "SEND",        order: ["SEND", "Non-SEND"] as string[],              of: (l: LearnerRow) => (l.sen ? "SEND" : "Non-SEND") },
+    residency:   { label: "Boarding",    order: ["Boarding", "Day"] as string[],               of: (l: LearnerRow) => l.residency ?? null },
+    origin:      { label: "Origin",      order: ["International", "Local"] as string[],         of: (l: LearnerRow) => l.origin ?? null },
+    achievement: { label: "Achievement", order: ["HPA", "Average", "LPA"] as string[],          of: achieveOf },
   } as const;
   const GROUP_TABS: { id: keyof typeof DIMS; label: string }[] = [
     { id: "gender", label: "Male / Female" }, { id: "sen", label: "SEND" },
     { id: "origin", label: "Intl / Local" }, { id: "residency", label: "Day / Boarding" },
+    { id: "achievement", label: "LPA / HPA" },
   ];
 
   // Selected-dimension groups actually present in scope, with avg + pass rate.
@@ -123,7 +129,7 @@ export default function Dashboard({
       const rows = scored.filter((l) => dim.of(l) === name);
       const n = rows.length;
       return {
-        name, n, color: GROUP_COLORS[i % GROUP_COLORS.length],
+        name, n, color: groupBy === "achievement" ? ACH_COLORS[name] : GROUP_COLORS[i % GROUP_COLORS.length],
         avg: n ? Math.round(rows.reduce((s, l) => s + val(l), 0) / n) : 0,
         pass: n ? Math.round((rows.filter((l) => l.avg >= 50).length / n) * 100) : 0,
       };
@@ -435,7 +441,7 @@ export default function Dashboard({
                     ))}
                   </div>
                 }>
-                {byGroup.groups.length === 0 ? <NoData msg={`Set ${DIMS[groupBy].label.toLowerCase()} on the Classes page to compare.`} /> : (
+                {byGroup.groups.length === 0 ? <NoData msg={groupBy === "achievement" ? "No marks in scope to group by achievement." : `Set ${DIMS[groupBy].label.toLowerCase()} on the Classes page to compare.`} /> : (
                   <>
                     <ResponsiveContainer width="100%" height={180}>
                       <BarChart data={byGroup.groups} margin={{ top: 6, right: 10, left: -18, bottom: 0 }}>
@@ -459,6 +465,7 @@ export default function Dashboard({
                       ))}
                       {byGroup.unspecified > 0 && <div style={{ alignSelf: "center", fontSize: 11, color: t.inkFaint }}>{byGroup.unspecified} unspecified</div>}
                     </div>
+                    {groupBy === "achievement" && <div style={{ fontSize: 11, color: t.inkFaint, marginTop: 8 }}>Tiers by average: HPA ≥ 70% · Average 50–69% · LPA below 50%.</div>}
                   </>
                 )}
               </Panel>
