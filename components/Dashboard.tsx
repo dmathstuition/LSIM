@@ -164,6 +164,38 @@ export default function Dashboard({
       .sort((a, b) => (a.school === "HPA" ? a.avg - b.avg : b.avg - a.avg)),
     [scored]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // One percentage-breakdown table per dimension — share of cohort, average,
+  // pass rate and the HPA (≥70) / LPA (<50) split for every group, so all the
+  // cohorts (Day/Boarding, Intl/Local, gender, SEND, both achievement bands)
+  // can be read side by side to draw inferences. All based on `l.avg`.
+  const BREAKDOWN_DIMS: { label: string; order: string[]; of: (l: LearnerRow) => string | null }[] = [
+    { label: "Gender", order: ["Female", "Male", "Other"], of: (l) => l.gender },
+    { label: "SEND", order: ["SEND", "Non-SEND"], of: (l) => (l.sen ? "SEND" : "Non-SEND") },
+    { label: "Day / Boarding", order: ["Boarding", "Day"], of: (l) => l.residency },
+    { label: "International / Local", order: ["International", "Local"], of: (l) => l.origin },
+    { label: "HPA / LPA — automatic (by average)", order: ["HPA", "Average", "LPA"], of: achieveOf },
+    { label: "HPA / LPA — school-assigned", order: ["HPA", "LPA"], of: (l) => l.school_band },
+  ];
+  const groupBreakdown = useMemo(() => {
+    const total = scored.length;
+    const stat = (rows: LearnerRow[]) => {
+      const n = rows.length;
+      const pct = (c: number) => (n ? Math.round((c / n) * 100) : 0);
+      return {
+        n, share: total ? Math.round((n / total) * 100) : 0,
+        avg: n ? Math.round(rows.reduce((s, l) => s + l.avg, 0) / n) : 0,
+        pass: pct(rows.filter((l) => l.avg >= 50).length),
+        hpa: pct(rows.filter((l) => l.avg >= 70).length),
+        lpa: pct(rows.filter((l) => l.avg < 50).length),
+      };
+    };
+    return BREAKDOWN_DIMS.map((d) => ({
+      label: d.label,
+      groups: d.order.map((name) => ({ name, ...stat(scored.filter((l) => d.of(l) === name)) })).filter((g) => g.n > 0),
+      unspecified: scored.filter((l) => !d.order.includes(d.of(l) as string)).length,
+    })).filter((d) => d.groups.length > 0);
+  }, [scored]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Gender split kept for the auto-insight below (independent of the picker).
   const byGender = useMemo(() => {
     const groups = ["Female", "Male"].map((g) => {
@@ -551,6 +583,45 @@ export default function Dashboard({
                       ))}
                     </div>
                   )}
+                </Panel>
+              </section>
+            )}
+
+            {groupBreakdown.length > 0 && (
+              <section style={{ marginBottom: 14 }}>
+                <Panel title="Percentage breakdown by group"
+                  sub="Share of cohort, average, pass rate and HPA/LPA split for every group — read across to compare and decide"
+                  right={<Percent size={16} color={t.brand} />}>
+                  <div style={{ display: "grid", gap: 18 }}>
+                    {groupBreakdown.map((d) => (
+                      <div key={d.label}>
+                        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>{d.label}
+                          {d.unspecified > 0 && <span style={{ fontSize: 11, fontWeight: 400, color: t.inkFaint }}> · {d.unspecified} unspecified</span>}
+                        </div>
+                        <div className="table-wrap"><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 480 }}>
+                          <thead><tr>
+                            {["Group", "Learners", "Share", "Avg", "Pass", "% HPA (≥70)", "% LPA (<50)"].map((h, i) => (
+                              <th key={h} style={{ textAlign: i === 0 ? "left" : "center", padding: "0 8px 7px", fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".05em", color: t.inkFaint, whiteSpace: "nowrap" }}>{h}</th>
+                            ))}
+                          </tr></thead>
+                          <tbody>
+                            {d.groups.map((g) => (
+                              <tr key={g.name} style={{ borderTop: `1px solid ${t.border}` }}>
+                                <td style={{ padding: "7px 8px", fontWeight: 600 }}>{g.name}</td>
+                                <td className="dm-num" style={{ padding: "7px 8px", textAlign: "center" }}>{g.n}</td>
+                                <td className="dm-num" style={{ padding: "7px 8px", textAlign: "center", color: t.inkSoft }}>{g.share}%</td>
+                                <td className="dm-num" style={{ padding: "7px 8px", textAlign: "center", fontWeight: 700, color: bandOf(g.avg).color }}>{g.avg}%</td>
+                                <td className="dm-num" style={{ padding: "7px 8px", textAlign: "center" }}>{g.pass}%</td>
+                                <td className="dm-num" style={{ padding: "7px 8px", textAlign: "center", color: "#1FA97A" }}>{g.hpa}%</td>
+                                <td className="dm-num" style={{ padding: "7px 8px", textAlign: "center", color: "#C0504D" }}>{g.lpa}%</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table></div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 11, color: t.inkFaint, marginTop: 12 }}>Share = % of learners with marks in scope · HPA ≥ 70% · LPA below 50%. Reflects the current arm / subject / term / session filters.</div>
                 </Panel>
               </section>
             )}
