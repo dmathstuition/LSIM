@@ -22,6 +22,5 @@ select id, coalesce(raw_user_meta_data->>'fullname', email), email
 from auth.users
 on conflict (id) do nothing;
 
--- 3. Seed a subject so the score-entry dropdown isn't empty.
-insert into subjects (subject_name) values ('Mathematics')
-on conflict (subject_name) do nothing;
+-- 3. Subjects/courses start empty — add your own on the Subjects page (single
+--    or bulk import). (Previously this seeded a sample "Mathematics" subject.)

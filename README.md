@@ -83,7 +83,7 @@ placeholder Supabase env vars so the static prerender passes).
 | `/reports` | Class broadsheet (every learner × subject, per term/session) — print or export CSV. |
 | `/oversight` | Supervisor/admin only — cross-teacher rollup of learners, averages, risk and open interventions. |
 | `/classes` | Create arms and add learners (single or CSV import); delete arms/learners. |
-| `/subjects` | Manage the shared subject list — add, rename, delete (delete is blocked while scores reference it). |
+| `/subjects` | Manage the shared subject/course list — add one, **bulk import** a pasted/CSV list, rename, delete (delete is blocked while scores reference it). |
 | `/settings` | Edit your name/department and change password. |
 
 A **global search** (icon in the nav, or ⌘/Ctrl-K) finds any learner by name or
@@ -133,6 +133,15 @@ Weekly evidence uploads go to the private `evidence` Storage bucket under
 `<your-uid>/<weekly_tracker_id>/<file>`; the storage policy in
 `migration_evidence_storage.sql` locks each file to the teacher who uploaded it.
 Files are read back through short-lived signed URLs.
+
+## Starting fresh (clearing sample data)
+To wipe the demo/sample data and start from a blank slate, run
+`supabase/migration_reset_data.sql` in the Supabase SQL editor. It empties every
+operational table (subjects, classes, learners, scores, attendance, assignments,
+submissions, weekly tracker, interventions) but keeps your **login/profiles**, so
+you stay signed in. It's irreversible — export first (dashboard **Export CSV** /
+broadsheet CSV) if you want a copy. Then add your courses on **Subjects** (single
+or bulk import) and your arms + learners on **Classes**.
 
 ## Exports & data
 The dashboard **Export CSV** button downloads the current learner roster, and the

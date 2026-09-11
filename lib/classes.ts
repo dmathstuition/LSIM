@@ -58,6 +58,22 @@ export async function createSubject(subject_name: string) {
   if (error) throw error;
 }
 
+/** Bulk-add courses from a pasted/CSV list. De-dupes within the input and
+ *  skips names that already exist (unique subject_name). Returns how many rows
+ *  were newly created. */
+export async function bulkAddSubjects(names: string[]): Promise<number> {
+  const clean = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
+  if (clean.length === 0) return 0;
+  const before = await getSubjects();
+  const existing = new Set(before.map((s) => s.subject_name.toLowerCase()));
+  const toAdd = clean.filter((n) => !existing.has(n.toLowerCase()));
+  if (toAdd.length === 0) return 0;
+  const { error } = await supabase.from("subjects")
+    .upsert(toAdd.map((subject_name) => ({ subject_name })), { onConflict: "subject_name", ignoreDuplicates: true });
+  if (error) throw error;
+  return toAdd.length;
+}
+
 export async function renameSubject(id: string, subject_name: string) {
   const { error } = await supabase.from("subjects").update({ subject_name }).eq("id", id);
   if (error) throw error;
