@@ -1,15 +1,17 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { BookMarked, Plus, Check, Trash2, Pencil, X } from "lucide-react";
+import { BookMarked, Plus, Check, Trash2, Pencil, X, Upload } from "lucide-react";
 import { C, card, inp, btn, Wrap, PageHead, Empty } from "@/components/ui";
-import { getSubjects, createSubject, renameSubject, deleteSubject, type SubjectRow } from "@/lib/classes";
+import { getSubjects, createSubject, bulkAddSubjects, renameSubject, deleteSubject, type SubjectRow } from "@/lib/classes";
 
 export default function SubjectManager() {
   const [subjects, setSubjects] = useState<SubjectRow[]>([]);
   const [name, setName] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [bulk, setBulk] = useState("");
+  const [showBulk, setShowBulk] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
   async function refresh() { setSubjects(await getSubjects()); }
@@ -19,6 +21,18 @@ export default function SubjectManager() {
     if (!name.trim()) return;
     try { await createSubject(name.trim()); setName(""); setMsg({ kind: "ok", text: "Subject added." }); await refresh(); }
     catch (e: any) { setMsg({ kind: "err", text: e.message }); }
+  }
+  // Split a pasted list on newlines, commas, tabs or semicolons.
+  const bulkNames = bulk.split(/[\n,;\t]+/).map((s) => s.trim()).filter(Boolean);
+  async function importBulk() {
+    if (bulkNames.length === 0) return;
+    try {
+      const added = await bulkAddSubjects(bulkNames);
+      const skipped = new Set(bulkNames.map((n) => n.toLowerCase())).size - added;
+      setBulk(""); setShowBulk(false);
+      setMsg({ kind: "ok", text: `Added ${added} course${added === 1 ? "" : "s"}${skipped > 0 ? ` · ${skipped} already existed` : ""}.` });
+      await refresh();
+    } catch (e: any) { setMsg({ kind: "err", text: e.message }); }
   }
   async function saveRename(id: string) {
     if (!draft.trim()) return;
@@ -46,6 +60,22 @@ export default function SubjectManager() {
             onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} />
           <button className="btn-press" style={btn} onClick={add}><Plus size={15} /> Add</button>
         </div>
+        <button onClick={() => setShowBulk((v) => !v)} style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: 0, color: C.brand, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+          <Upload size={14} /> {showBulk ? "Hide bulk import" : "Bulk import courses"}
+        </button>
+        {showBulk && (
+          <div style={{ marginTop: 10 }}>
+            <textarea style={{ ...inp, width: "100%", minHeight: 120, resize: "vertical", fontFamily: "inherit" }}
+              placeholder={"Paste one course per line (or comma-separated):\nEnglish\nMathematics\nBasic Science\nBusiness Studies"}
+              value={bulk} onChange={(e) => setBulk(e.target.value)} />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 9, marginTop: 9 }}>
+              <span style={{ fontSize: 12, color: C.inkFaint }}>{bulkNames.length} course{bulkNames.length === 1 ? "" : "s"} detected · duplicates are skipped</span>
+              <button className="btn-press" style={{ ...btn, opacity: bulkNames.length === 0 ? 0.5 : 1 }} disabled={bulkNames.length === 0} onClick={importBulk}>
+                <Upload size={15} /> Import {bulkNames.length || ""}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div style={card}>
